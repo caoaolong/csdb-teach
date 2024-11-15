@@ -1,4 +1,4 @@
-package cfs
+package unit
 
 import "testing"
 

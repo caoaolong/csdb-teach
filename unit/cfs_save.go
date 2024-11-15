@@ -1,10 +1,9 @@
-package cfs
+package unit
 
 import (
+	"csdb-teach/conf"
 	"fmt"
-	"math/rand"
 	"os"
-	"time"
 )
 
 func SaveData1(path string, data []byte) error {
@@ -22,22 +21,8 @@ func SaveData1(path string, data []byte) error {
 	return err
 }
 
-func randomInt(length int) string {
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	// 创建一个字符集，包含数字
-	const charset = "0123456789"
-	result := make([]byte, length)
-
-	for i := range result {
-		result[i] = charset[rand.Intn(len(charset))]
-	}
-
-	return string(result)
-}
-
 func SaveData2(path string, data []byte) error {
-	tmp := fmt.Sprintf("%s.tmp.%s", path, randomInt(5))
+	tmp := fmt.Sprintf("%s.tmp.%s", path, conf.RandomInt(5))
 	fp, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0664)
 	if err != nil {
 		return err
@@ -60,7 +45,7 @@ func SaveData2(path string, data []byte) error {
 }
 
 func SaveData3(path string, data []byte) error {
-	tmp := fmt.Sprintf("%s.tmp.%s", path, randomInt(5))
+	tmp := fmt.Sprintf("%s.tmp.%s", path, conf.RandomInt(5))
 	fp, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0664)
 	if err != nil {
 		return err
