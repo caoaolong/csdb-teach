@@ -13,7 +13,7 @@ func TestCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 10; i++ {
-		err = pf.AppendPage(uint16(i), conf.AttrInMemory, []byte(fmt.Sprintf("Hello,%d", i+1)))
+		err = pf.AppendPage(uint16(i), conf.AttrInMemory, 1, uint32(i), []byte(fmt.Sprintf("Hello,%d", i+1)))
 		if err != nil {
 			t.Fatal(err)
 		}

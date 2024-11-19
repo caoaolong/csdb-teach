@@ -4,7 +4,6 @@ import (
 	"csdb-teach/conf"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 )
@@ -85,11 +84,6 @@ func (pf *PageFile) parse() error {
 		return errors.New(conf.ErrFileFormat)
 	}
 	for index := int64(conf.FileHeaderSize); index < pf.fi.Size(); index += int64(conf.FilePageSize) {
-		// 定位到每一页
-		_, err = pf.fp.Seek(index, io.SeekStart)
-		if err != nil {
-			return err
-		}
 		// 读取数据
 		var page = new(Page)
 		err = page.read(pf, index)

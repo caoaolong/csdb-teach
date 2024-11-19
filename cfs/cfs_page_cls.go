@@ -7,12 +7,13 @@ import (
 )
 
 type Page struct {
-	attr       uint8
-	parentId   uint16
-	ownerId    uint16
-	entryCount uint32
-	index      [7]byte
-	data       []byte
+	attr     uint8
+	parentId uint16
+	ownerId  uint16
+	dbId     uint8
+	tbId     uint32
+	unused   [6]byte
+	data     []byte
 }
 
 func (p *Page) IsInMemory() bool {
@@ -45,8 +46,8 @@ func (p *Page) write(pf *PageFile, data []byte) error {
 	header[0] = p.attr
 	binary.BigEndian.PutUint16(header[1:3], p.parentId)
 	binary.BigEndian.PutUint16(header[3:5], p.ownerId)
-	binary.BigEndian.PutUint32(header[5:9], p.entryCount)
-	copy(header[9:], p.index[:])
+	header[5] = p.dbId
+	binary.BigEndian.PutUint32(header[6:10], p.tbId)
 	_, err = pf.fp.Write(header)
 	if err != nil {
 		return err
@@ -70,8 +71,8 @@ func (p *Page) read(pf *PageFile, offset int64) error {
 	p.attr = data[0]
 	p.parentId = binary.BigEndian.Uint16(data[1:3])
 	p.ownerId = binary.BigEndian.Uint16(data[3:5])
-	p.entryCount = binary.BigEndian.Uint32(data[5:9])
-	copy(p.index[:], data[9:16])
+	p.dbId = data[5]
+	p.tbId = binary.BigEndian.Uint32(data[6:10])
 	// 页存在且在内存中则读取并保存页的数据
 	if p.IsExists() && p.IsInMemory() {
 		p.data = make([]byte, conf.FilePageSize-conf.PageHeaderSize)
@@ -90,7 +91,7 @@ func (p *Page) clear(pf *PageFile) error {
 	return err
 }
 
-func (pf *PageFile) AppendPage(parentId uint16, attr uint8, data []byte) error {
+func (pf *PageFile) AppendPage(parentId uint16, attr uint8, db uint8, tb uint32, data []byte) error {
 	// TODO: 判断是否可以追加
 	// 初始化 Page
 	var page = new(Page)
@@ -105,7 +106,8 @@ func (pf *PageFile) AppendPage(parentId uint16, attr uint8, data []byte) error {
 		page.parentId = 0
 	}
 	page.attr = conf.AttrExists | attr
-	page.entryCount = 0
+	page.dbId = db
+	page.tbId = tb
 	// 写入 Page
 	return page.write(pf, data)
 }
