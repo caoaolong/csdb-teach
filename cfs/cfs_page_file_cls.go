@@ -4,6 +4,7 @@ import (
 	"csdb-teach/conf"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -13,6 +14,13 @@ type PageFile struct {
 	originalName string
 	fp           *os.File
 	fi           os.FileInfo
+	pageCount    uint16
+	pages        []*Page
+	dirty        bool
+}
+
+func (pf *PageFile) IsDirty() bool {
+	return pf.dirty
 }
 
 func (pf *PageFile) Create(filename string) error {
@@ -38,6 +46,8 @@ func (pf *PageFile) Create(filename string) error {
 	}
 	// 设置文件头
 	_, err = pf.fp.Write([]byte(conf.FileHeaderMagic))
+	pf.pages = make([]*Page, conf.FilePageInitCount)
+	pf.dirty = true
 	return err
 }
 
@@ -60,6 +70,7 @@ func (pf *PageFile) Read(filename string) error {
 	if v > 0 {
 		return errors.New(conf.ErrFileFormat)
 	}
+	pf.pages = make([]*Page, (pf.fi.Size()-int64(conf.FileHeaderSize))/int64(conf.FilePageSize))
 	return pf.parse()
 }
 
@@ -73,12 +84,34 @@ func (pf *PageFile) parse() error {
 	if strings.Compare(string(header[:len(conf.FileHeaderMagic)]), conf.FileHeaderMagic) != 0 {
 		return errors.New(conf.ErrFileFormat)
 	}
-	// TODO: 解析页文件的每一项
+	for index := int64(conf.FileHeaderSize); index < pf.fi.Size(); index += int64(conf.FilePageSize) {
+		// 定位到每一页
+		_, err = pf.fp.Seek(index, io.SeekStart)
+		if err != nil {
+			return err
+		}
+		// 读取数据
+		var page = new(Page)
+		err = page.read(pf, index)
+		if err != nil {
+			return err
+		}
+		pf.pages[index/int64(conf.FilePageSize)] = page
+		pf.pageCount++
+		if !page.IsExists() {
+			break
+		}
+	}
 	return err
 }
 
 func (pf *PageFile) Flush() error {
-	return pf.fp.Sync()
+	if pf.dirty {
+		pf.dirty = false
+		return pf.fp.Sync()
+	} else {
+		return nil
+	}
 }
 
 func (pf *PageFile) Close() error {
@@ -90,5 +123,8 @@ func (pf *PageFile) Close() error {
 	if err != nil {
 		return err
 	}
-	return os.Rename(pf.tempName, pf.originalName)
+	if pf.tempName != "" && pf.originalName != "" {
+		return os.Rename(pf.tempName, pf.originalName)
+	}
+	return err
 }

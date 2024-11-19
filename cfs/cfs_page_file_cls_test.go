@@ -1,6 +1,10 @@
 package cfs
 
-import "testing"
+import (
+	"csdb-teach/conf"
+	"fmt"
+	"testing"
+)
 
 func TestCreate(t *testing.T) {
 	pf := new(PageFile)
@@ -8,7 +12,20 @@ func TestCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = pf.Close()
+	for i := 0; i < 10; i++ {
+		err = pf.AppendPage(uint16(i), conf.AttrInMemory, []byte(fmt.Sprintf("Hello,%d", i+1)))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	err = pf.Flush()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = pf.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestRead(t *testing.T) {
@@ -17,5 +34,8 @@ func TestRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = pf.Close()
+	err = pf.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
