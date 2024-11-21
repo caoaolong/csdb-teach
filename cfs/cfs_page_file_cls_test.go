@@ -45,7 +45,7 @@ func TestPage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	page, err := pf.Page(1)
+	page, err := pf.Page(1, false)
 	if err != nil {
 		t.Fatal(err)
 	}

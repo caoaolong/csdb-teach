@@ -123,11 +123,11 @@ func (pf *PageFile) Close() error {
 	return err
 }
 
-func (pf *PageFile) Page(index int) (*Page, error) {
+func (pf *PageFile) Page(index int, body bool) (*Page, error) {
 	if index < 0 || index >= int(pf.pageCount) {
 		return nil, errors.New(conf.ErrPageIndex)
 	}
 	var page = pf.pages[index]
 	page.offset = int64((index-1)*conf.FilePageSize) + conf.FileHeaderSize
-	return page, nil
+	return page, page.Read(pf, body)
 }
