@@ -85,8 +85,8 @@ func (pf *PageFile) parse() error {
 	}
 	for index := int64(conf.FileHeaderSize); index < pf.fi.Size(); index += int64(conf.FilePageSize) {
 		// 读取数据
-		var page = new(Page)
-		err = page.read(pf, index)
+		var page = NewEmptyPage(index)
+		err = page.Read(pf, false)
 		if err != nil {
 			return err
 		}
@@ -121,4 +121,13 @@ func (pf *PageFile) Close() error {
 		return os.Rename(pf.tempName, pf.originalName)
 	}
 	return err
+}
+
+func (pf *PageFile) Page(index int) (*Page, error) {
+	if index < 0 || index >= int(pf.pageCount) {
+		return nil, errors.New(conf.ErrPageIndex)
+	}
+	var page = pf.pages[index]
+	page.offset = int64((index-1)*conf.FilePageSize) + conf.FileHeaderSize
+	return page, nil
 }

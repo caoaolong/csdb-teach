@@ -14,11 +14,11 @@ const (
 
 const (
 	ErrFileFormat = "this file is not a page file"
+	ErrPageIndex  = "this page index out of range"
 )
 
 const (
 	AttrExists    = 0b00000001
-	AttrInMemory  = 0b00000010
 	AttrData      = 0b00000100
 	AttrStructure = 0b00001000
 	AttrString    = 0b00001100

@@ -7,6 +7,7 @@ import (
 )
 
 type Page struct {
+	offset   int64
 	attr     uint8
 	parentId uint16
 	ownerId  uint16
@@ -16,8 +17,10 @@ type Page struct {
 	data     []byte
 }
 
-func (p *Page) IsInMemory() bool {
-	return (p.attr & conf.AttrInMemory) > 0
+func NewEmptyPage(offset int64) *Page {
+	var page = new(Page)
+	page.offset = offset
+	return page
 }
 
 func (p *Page) IsExists() bool {
@@ -36,9 +39,32 @@ func (p *Page) IsString() bool {
 	return (p.attr & conf.AttrString) > 0
 }
 
-func (p *Page) write(pf *PageFile, data []byte) error {
+func (p *Page) IsEmpty() bool {
+	return p.data == nil
+}
+
+func (p *Page) Attr(pf *PageFile, attr uint8) error {
+	p.attr |= attr
 	// 定位写入位置
-	_, err := pf.fp.Seek(int64(conf.FileHeaderSize)+int64(+conf.FilePageSize)*int64(p.ownerId-1), io.SeekStart)
+	_, err := pf.fp.Seek(p.offset, io.SeekStart)
+	if err != nil {
+		return err
+	}
+	_, err = pf.fp.Write([]byte{p.attr})
+	if err != nil {
+		return err
+	}
+	pf.dirty = true
+	return nil
+}
+
+func (p *Page) Data(data []byte) {
+	copy(p.data, data)
+}
+
+func (p *Page) Write(pf *PageFile) error {
+	// 定位写入位置
+	_, err := pf.fp.Seek(p.offset, io.SeekStart)
 	if err != nil {
 		return err
 	}
@@ -52,15 +78,13 @@ func (p *Page) write(pf *PageFile, data []byte) error {
 	if err != nil {
 		return err
 	}
-	p.data = make([]byte, conf.FilePageSize-conf.PageHeaderSize)
-	copy(p.data, data)
 	_, err = pf.fp.Write(p.data)
 	return err
 }
 
-func (p *Page) read(pf *PageFile, offset int64) error {
+func (p *Page) Read(pf *PageFile, body bool) error {
 	var data = make([]byte, conf.FilePageSize)
-	_, err := pf.fp.Seek(offset, io.SeekStart)
+	_, err := pf.fp.Seek(p.offset, io.SeekStart)
 	if err != nil {
 		return err
 	}
@@ -73,15 +97,14 @@ func (p *Page) read(pf *PageFile, offset int64) error {
 	p.ownerId = binary.BigEndian.Uint16(data[3:5])
 	p.dbId = data[5]
 	p.tbId = binary.BigEndian.Uint32(data[6:10])
-	// 页存在且在内存中则读取并保存页的数据
-	if p.IsExists() && p.IsInMemory() {
+	if body {
 		p.data = make([]byte, conf.FilePageSize-conf.PageHeaderSize)
 		copy(p.data, data[conf.PageHeaderSize:])
 	}
-	return err
+	return nil
 }
 
-func (p *Page) clear(pf *PageFile) error {
+func (p *Page) Clear(pf *PageFile) error {
 	_, err := pf.fp.Seek(int64(conf.FileHeaderSize)+int64(+conf.FilePageSize)*int64(p.ownerId-1), io.SeekStart)
 	if err != nil {
 		return err
@@ -108,10 +131,17 @@ func (pf *PageFile) AppendPage(parentId uint16, attr uint8, db uint8, tb uint32,
 	page.attr = conf.AttrExists | attr
 	page.dbId = db
 	page.tbId = tb
+	page.data = make([]byte, conf.FilePageSize-conf.PageHeaderSize)
+	copy(page.data, data)
 	// 写入 Page
-	return page.write(pf, data)
+	err := page.Write(pf)
+	if err != nil {
+		return err
+	}
+	pf.dirty = true
+	return nil
 }
 
 func (pf *PageFile) ClearPage(index uint16) error {
-	return pf.pages[index].clear(pf)
+	return pf.pages[index].Clear(pf)
 }
