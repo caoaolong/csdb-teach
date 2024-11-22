@@ -1,0 +1,82 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
+  <diagram name="第 1 页" id="aCl9ZhKFC_bxHveetNq9">
+    <mxGraphModel dx="716" dy="428" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-3" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="140" y="160" width="50" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-1" value="Type" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-3">
+          <mxGeometry y="20" width="50" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-2" value="1 byte" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-3">
+          <mxGeometry width="50" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-4" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="540" y="160" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-5" value="Name Length" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-4">
+          <mxGeometry y="20" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-6" value="1 byte" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-4">
+          <mxGeometry width="100" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-10" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="190" y="160" width="70" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-11" value="Attribute" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-10">
+          <mxGeometry y="20" width="70" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-12" value="1 byte" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-10">
+          <mxGeometry width="70" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-16" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="140" y="220" width="500" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-15" value="n bytes" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-16">
+          <mxGeometry y="40" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-14" value="Name" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-16">
+          <mxGeometry width="500" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-17" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="260" y="160" width="70" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-18" value="DBID" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-17">
+          <mxGeometry y="20" width="70" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-19" value="1 byte" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-17">
+          <mxGeometry width="70" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-20" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="330" y="160" width="70" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-21" value="TBID" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-20">
+          <mxGeometry y="20" width="70" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-22" value="4 bytes" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-20">
+          <mxGeometry width="70" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-23" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="400" y="160" width="70" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-24" value="COLID" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-23">
+          <mxGeometry y="20" width="70" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-25" value="4 bytes" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-23">
+          <mxGeometry width="70" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-26" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="470" y="160" width="70" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-27" value="Unused" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-26">
+          <mxGeometry y="20" width="70" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="YxzUP9CEqB-BbSKybJcW-28" value="4 bytes" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="YxzUP9CEqB-BbSKybJcW-26">
+          <mxGeometry width="70" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
