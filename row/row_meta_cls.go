@@ -1,6 +1,7 @@
 package row
 
 import (
+	"csdb-teach/cfs"
 	"csdb-teach/conf"
 	"encoding/binary"
 	"errors"
@@ -19,6 +20,11 @@ type Meta struct {
 	data   []byte
 }
 
+func NewEmptyMeta() *Meta {
+	var meta = new(Meta)
+	return meta
+}
+
 func NewMetaRow(tp, attr, dbId uint8, tbId, colId uint32, value string) (*Meta, error) {
 	var nl = len(value)
 	if nl > math.MaxUint8 {
@@ -26,7 +32,7 @@ func NewMetaRow(tp, attr, dbId uint8, tbId, colId uint32, value string) (*Meta, 
 	}
 	var meta = new(Meta)
 	meta.tp = tp
-	meta.attr = attr
+	meta.attr = attr | conf.AttrExists
 	meta.dbId = dbId
 	meta.tbId = tbId
 	meta.colId = colId
@@ -50,8 +56,18 @@ func (m *Meta) Encode() []byte {
 	return data
 }
 
-func (m *Meta) DecodeMeta(data []byte) (*Meta, error) {
-	var meta = new(Meta)
+func (m *Meta) Clean() {
+	m.tp = 0
+	m.attr = 0xFF & m.attr
+	m.dbId = 0
+	m.tbId = 0
+	m.colId = 0
+	m.nl = 0
+	m.data = nil
+}
+
+func (m *Meta) Decode(page *cfs.Page, offset int64) *Meta {
+	var data = page.Raw()[offset:]
 	m.tp = data[0]
 	m.attr = data[1]
 	m.dbId = data[2]
@@ -60,6 +76,10 @@ func (m *Meta) DecodeMeta(data []byte) (*Meta, error) {
 	m.unused = binary.BigEndian.Uint32(data[11:15])
 	m.nl = data[15]
 	m.data = make([]byte, m.nl)
-	copy(meta.data, data[16:])
-	return meta, nil
+	copy(m.data, data[16:])
+	return m
+}
+
+func (m *Meta) String() string {
+	return string(m.data)
 }

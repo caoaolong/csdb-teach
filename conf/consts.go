@@ -17,6 +17,7 @@ const (
 	ErrFileFormat  = "this file is not a page file"
 	ErrPageIndex   = "this page index out of range"
 	ErrNameTooLong = "this name is too long"
+	ErrRowType     = "this is an unknown row type"
 )
 
 const (
@@ -30,4 +31,6 @@ const (
 	RowTypeDatabase = 0b00000001
 	RowTypeTable    = 0b00000010
 	RowTypeColumn   = 0b00000100
+	RowTypeNull     = 0b11111111
+	RowTypeUnknown  = 0b00000000
 )

@@ -18,3 +18,17 @@ func RandomInt(length int) string {
 
 	return string(result)
 }
+
+func RowType(tp byte) uint8 {
+	if RowTypeColumn&tp == RowTypeColumn {
+		return RowTypeColumn
+	} else if RowTypeTable&tp == RowTypeTable {
+		return RowTypeTable
+	} else if RowTypeDatabase&tp == RowTypeDatabase {
+		return RowTypeDatabase
+	} else if RowTypeNull&tp == RowTypeNull {
+		return RowTypeNull
+	} else {
+		return RowTypeUnknown
+	}
+}

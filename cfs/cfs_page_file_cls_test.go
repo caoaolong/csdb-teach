@@ -1,7 +1,6 @@
 package cfs
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -12,7 +11,7 @@ func TestCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 10; i++ {
-		err = pf.AppendPage(uint16(i), 0, 1, uint32(i+1), []byte(fmt.Sprintf("Hello,%d", i+1)))
+		err = pf.AppendPage(uint16(i), 0, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -54,8 +53,7 @@ func TestPage(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		page.Data([]byte("Test,CS.DB!"))
-		err = page.Write(pf)
+		err = page.Write(pf, []byte("Test,CS.DB!"), false)
 		if err != nil {
 			t.Fatal(err)
 		}

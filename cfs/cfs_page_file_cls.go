@@ -70,12 +70,8 @@ func (pf *PageFile) Read(filename string) error {
 		return errors.New(conf.ErrFileFormat)
 	}
 	pf.pages = make([]*Page, (pf.fi.Size()-int64(conf.FileHeaderSize))/int64(conf.FilePageSize))
-	return pf.parse()
-}
-
-func (pf *PageFile) parse() error {
 	var header = make([]byte, conf.FileHeaderSize)
-	_, err := pf.fp.Read(header)
+	_, err = pf.fp.Read(header)
 	if err != nil {
 		return err
 	}

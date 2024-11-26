@@ -3,10 +3,11 @@ package row
 import (
 	"csdb-teach/cfs"
 	"csdb-teach/conf"
+	"fmt"
 	"testing"
 )
 
-func TestMetaRow(t *testing.T) {
+func TestWriteMetaRow(t *testing.T) {
 	pf := new(cfs.PageFile)
 	err := pf.Read("test1")
 	if err != nil {
@@ -19,11 +20,24 @@ func TestMetaRow(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 写入行
-	page.Data(meta.Encode())
-	err = page.Write(pf)
+	err = page.Write(pf, meta.Encode(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = pf.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReadMetaRow(t *testing.T) {
+	pf := new(cfs.PageFile)
+	err := pf.Read("test1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := pf.Page(1, true)
+	fmt.Println(NewEmptyMeta().Decode(page, 0).String())
 	err = pf.Close()
 	if err != nil {
 		t.Fatal(err)
