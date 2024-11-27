@@ -19,7 +19,7 @@ func NewDatabase(pf *cfs.PageFile, name string) (*Database, error) {
 		return nil, err
 	}
 	database.id = dbId
-	meta, err := row.NewMetaRow(conf.RowTypeDatabase, 0, dbId, 0, 0, database.name)
+	meta, err := row.NewMetaRow(conf.RowTypeDatabase, 0, dbId, 0, 0, 0, database.name)
 	if err != nil {
 		return nil, err
 	}

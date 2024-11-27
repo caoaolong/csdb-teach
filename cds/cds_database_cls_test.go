@@ -13,7 +13,23 @@ func TestNewDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = NewDatabase(pf, "school")
+	db, err := NewDatabase(pf, "school")
+	if err != nil {
+		t.Fatal(err)
+	}
+	table, err := NewTable(pf, db, "student")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewColumn(pf, db, table, "std_name", conf.ColumnTypeNchar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewColumn(pf, db, table, "std_age", conf.ColumnTypeTinyInt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewColumn(pf, db, table, "std_sex", conf.ColumnTypeBit)
 	if err != nil {
 		t.Fatal(err)
 	}

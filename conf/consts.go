@@ -41,3 +41,25 @@ const (
 	RowTypeNull     = 0b11111111
 	RowTypeUnknown  = 0b00000000
 )
+
+const (
+	ColumnTypeTinyInt    = 0b0000_0000_0000_0001
+	ColumnTypeMediumInt  = 0b0000_0000_0000_0010
+	ColumnTypeDefaultInt = 0b0000_0000_0000_0100
+	ColumnTypeBigIntInt  = 0b0000_0000_0000_1000
+	ColumnTypeBit        = 0b0000_0000_0000_0011
+
+	ColumnTypeFloat  = 0b0000_0000_0001_0000
+	ColumnTypeDouble = 0b0000_0000_0010_0000
+
+	ColumnTypeDate     = 0b0000_0000_0100_0000
+	ColumnTypeTime     = 0b0000_0000_1000_0000
+	ColumnTypeDateTime = 0b0000_0000_1100_0000
+
+	ColumnTypeVarchar    = 0b0000_0001_0000_0000
+	ColumnTypeNchar      = 0b0000_0011_0000_0000
+	ColumnTypeTinytext   = 0b0000_0010_0000_0000
+	ColumnTypeText       = 0b0000_0100_0000_0000
+	ColumnTypeMediumText = 0b0000_1000_0000_0000
+	ColumnTypeBlob       = 0b0000_1111_0000_0000
+)
