@@ -11,7 +11,7 @@ func TestCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 10; i++ {
-		err = pf.AppendPage(uint16(i), 0, 1)
+		err = pf.AppendPage(uint16(i), 0, 0)
 		if err != nil {
 			t.Fatal(err)
 		}

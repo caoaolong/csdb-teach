@@ -31,16 +31,8 @@ func (p *Page) IsExists() bool {
 	return (p.attr & conf.AttrExists) > 0
 }
 
-func (p *Page) IsData() bool {
-	return (p.attr & conf.AttrData) > 0
-}
-
-func (p *Page) IsStructure() bool {
-	return (p.attr & conf.AttrStructure) > 0
-}
-
-func (p *Page) IsString() bool {
-	return (p.attr & conf.AttrString) > 0
+func (p *Page) Type() uint8 {
+	return p.attr & conf.PageTypeMask
 }
 
 func (p *Page) IsEmpty() bool {
@@ -67,6 +59,9 @@ func (p *Page) Raw() []byte {
 }
 
 func (p *Page) Write(pf *PageFile, data []byte, overlay bool) error {
+	if p.data == nil {
+		p.data = make([]byte, conf.FilePageSize-conf.PageHeaderSize)
+	}
 	if overlay {
 		copy(p.data, data)
 	} else {

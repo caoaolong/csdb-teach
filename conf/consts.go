@@ -14,10 +14,11 @@ const (
 )
 
 const (
-	ErrFileFormat  = "this file is not a page file"
-	ErrPageIndex   = "this page index out of range"
-	ErrNameTooLong = "this name is too long"
-	ErrRowType     = "this is an unknown row type"
+	ErrFileFormat   = "this file is not a page file"
+	ErrPageIndex    = "this page index out of range"
+	ErrNameTooLong  = "this name is too long"
+	ErrRowType      = "this is an unknown row type"
+	ErrPageNotFound = "can't find the page of the specified type"
 )
 
 const (
@@ -25,6 +26,12 @@ const (
 	AttrData      = 0b00000100
 	AttrStructure = 0b00001000
 	AttrString    = 0b00001100
+
+	PageTypeMeta   = 0b00001000
+	PageTypeData   = 0b00010000
+	PageTypeString = 0b00100000
+	PageTypeIndex  = 0b00011000
+	PageTypeMask   = 0b00111000
 )
 
 const (

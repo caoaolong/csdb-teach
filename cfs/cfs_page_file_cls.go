@@ -124,6 +124,22 @@ func (pf *PageFile) Page(index int, body bool) (*Page, error) {
 		return nil, errors.New(conf.ErrPageIndex)
 	}
 	var page = pf.pages[index]
-	page.offset = int64((index-1)*conf.FilePageSize) + conf.FileHeaderSize
+	page.offset = int64(index*conf.FilePageSize) + conf.FileHeaderSize
 	return page, page.Read(pf, body)
+}
+
+func (pf *PageFile) PageByType(pType uint8, dbId uint8) (*Page, error) {
+	var page *Page
+	for i := 0; i < int(pf.pageCount); i++ {
+		page = pf.pages[i]
+		if page.Type() == 0 {
+			page.attr |= pType
+			page.dbId = dbId
+			return pf.Page(i, false)
+		}
+		if page.Type() == pType {
+			return pf.Page(i, true)
+		}
+	}
+	return nil, errors.New(conf.ErrPageNotFound)
 }
