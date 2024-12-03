@@ -1,9 +1,10 @@
 package csql
 
 type Token struct {
-	Value  string
-	Type   uint8
-	OpType uint8
+	Value   string
+	Type    uint8
+	OpType  uint8
+	OpValue uint8
 }
 
 const (

@@ -22,6 +22,19 @@ func (pf *PageFile) IsDirty() bool {
 	return pf.dirty
 }
 
+func (pf *PageFile) Open(filename string) error {
+	err := pf.Create(filename)
+	if err != nil {
+		if os.IsExist(err) {
+			err = pf.Read(filename)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return pf.Flush()
+}
+
 func (pf *PageFile) Create(filename string) error {
 	var originalName = fmt.Sprintf("%s/%s.cs", conf.Workspace, filename)
 	var tempName = fmt.Sprintf("%s/%s.cs.tmp", conf.Workspace, conf.RandomInt(5))

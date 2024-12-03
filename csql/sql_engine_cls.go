@@ -10,27 +10,34 @@ import (
 type SqlEngine struct {
 	tokens  list.List[Token]
 	entries [][]*Token
+	vm      *SqlVm
 }
 
 var _se *SqlEngine
 var _seOnce sync.Once
 
-// CM code map
-var CM = map[string]uint8{
-	"CREATE": 1,
-}
-
-// OM object map
-var OM = map[string]uint8{
-	"DATABASE": 1,
-	"TABLE":    2,
-}
-
 func NewSqlEngine() *SqlEngine {
 	_seOnce.Do(func() {
 		_se = new(SqlEngine)
+		_se.vm = newVm()
 	})
 	return _se
+}
+
+func (s *SqlEngine) Run(instructions []uint32) error {
+	return s.vm.run(instructions)
+}
+
+func (s *SqlEngine) Close() {
+	for _, v := range s.vm.pfm {
+		_ = v.Close()
+	}
+}
+
+func (s *SqlEngine) PushData(value string) uint8 {
+	var index = len(s.vm.dm)
+	s.vm.dm = append(s.vm.dm, value)
+	return uint8(index)
 }
 
 func (s *SqlEngine) PushToken(token Token) {
@@ -38,16 +45,25 @@ func (s *SqlEngine) PushToken(token Token) {
 		return
 	}
 	var value = strings.ToUpper(token.Value)
+	var opType uint8 = 0
+	var opValue uint8 = 0
 	if slices.Contains(keywords, value) {
-		token.Type = TokenTypeKeyword
-		if CM[value] > 0 {
-			token.OpType = OpTypeCode
-		} else if OM[value] > 0 {
-			token.OpType = OpTypeObject
+		opValue = s.vm.cm[value]
+		opType = OpTypeCode
+		if opValue == 0 {
+			opValue = s.vm.om[value]
+			opType = OpTypeObject
+			if opValue == 0 {
+				opType = OpTypeData
+				opValue = s.PushData(token.Value)
+			}
 		}
 	} else {
-		token.OpType = OpTypeData
+		opType = OpTypeData
+		opValue = s.PushData(token.Value)
 	}
+	token.OpType = opType
+	token.OpValue = opValue
 	s.tokens.Push(token)
 }
 
@@ -81,7 +97,7 @@ func (s *SqlEngine) ParseToken(script string) {
 	s.PushToken(NewToken(value.String(), TokenTypeIdentifier))
 }
 
-func (s *SqlEngine) ParseSyntax() {
+func (s *SqlEngine) ParseSyntax() ([]*ASTTree, error) {
 	s.entries = make([][]*Token, 0)
 	var entry = make([]*Token, 0)
 	for _, token := range s.Tokens() {
@@ -92,10 +108,25 @@ func (s *SqlEngine) ParseSyntax() {
 			entry = append(entry, &token)
 		}
 	}
+	var trees = make([]*ASTTree, 0)
+	for _, e := range s.entries {
+		tree, err := NewASTTree(s, e).Build()
+		if err != nil {
+			return trees, err
+		}
+		trees = append(trees, tree)
+	}
+	return trees, nil
 }
 
-func (s *SqlEngine) Compile() {
-	// TODO: 构建指令
-
-	// TODO: 启动虚拟机执行
+func (s *SqlEngine) Compile(trees []*ASTTree) ([]uint32, error) {
+	var instructions = make([]uint32, 0)
+	for _, tree := range trees {
+		switch tree.Root.OpValue {
+		case OpCodeCreate:
+			instructions = append(instructions, NewSqlInc(tree.Root.OpValue, tree.Root.Next.OpValue, tree.Root.Next.Next.OpValue))
+			break
+		}
+	}
+	return instructions, nil
 }

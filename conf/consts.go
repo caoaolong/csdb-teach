@@ -19,6 +19,7 @@ const (
 	ErrNameTooLong  = "this name is too long"
 	ErrRowType      = "this is an unknown row type"
 	ErrPageNotFound = "can't find the page of the specified type"
+	ErrSyntax       = "syntax error"
 )
 
 const (

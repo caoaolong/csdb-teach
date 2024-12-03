@@ -1,25 +1,37 @@
 package csql
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 )
 
 func TestSqlEngine(t *testing.T) {
+
 	var script = "create database school;"
+
+	// 创建SQL引擎
 	var se = NewSqlEngine()
+
+	// SQL编译器 - 前端
+	// 词法解析
 	se.ParseToken(script)
-	for _, e := range se.Tokens() {
-		t.Logf("Token: %s(%d, %d)\n", e.Value, e.Type, e.OpType)
+	// 语法解析
+	ast, err := se.ParseSyntax()
+	if err != nil {
+		t.Fatal(err)
 	}
-	se.ParseSyntax()
-	for _, e := range se.Entries() {
-		var line strings.Builder
-		for _, tk := range e {
-			line.WriteString(fmt.Sprintf("%s(%d, %d) ", tk.Value, tk.Type, tk.OpType))
-		}
-		t.Log(line.String())
-		line.Reset()
+
+	// SQL编译器 - 后端
+	// 编译
+	instructions, err := se.Compile(ast)
+	if err != nil {
+		t.Fatal(err)
 	}
+	// 运行
+	err = se.Run(instructions)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 关闭引擎
+	se.Close()
 }
