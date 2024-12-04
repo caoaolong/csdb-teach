@@ -85,7 +85,7 @@ func (pf *PageFile) checkFs() error {
 }
 
 func (pf *PageFile) checkAppend() error {
-	var newSize = int(pf.pageCount+1) * conf.FilePageSize
+	var newSize = int(pf.pageCount+1)*conf.FilePageSize + conf.FileHeaderSize
 	// 检查磁盘空间是否用完
 	if uint64(newSize) > pf.fs.fsFreeSize {
 		return errors.New(conf.ErrPageFileFull)
@@ -98,6 +98,9 @@ func (pf *PageFile) checkAppend() error {
 }
 
 func (pf *PageFile) expand() error {
+	if pf.pageCount == 0 {
+		pf.pageCount = 1
+	}
 	var newSize = pf.pageCount * 2
 	if int(newSize) > pf.maxPageCount {
 		return errors.New(conf.ErrPageFileFull)
