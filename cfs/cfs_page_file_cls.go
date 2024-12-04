@@ -4,9 +4,18 @@ import (
 	"csdb-teach/conf"
 	"errors"
 	"fmt"
+	"golang.org/x/sys/windows"
 	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
 )
+
+type Fs struct {
+	fsType      string
+	fsFreeSize  uint64
+	fsTotalSize uint64
+}
 
 type PageFile struct {
 	tempName     string
@@ -16,10 +25,90 @@ type PageFile struct {
 	pageCount    uint16
 	pages        []*Page
 	dirty        bool
+	maxPageCount int
+	fs           Fs
 }
 
 func (pf *PageFile) IsDirty() bool {
 	return pf.dirty
+}
+
+func NewPageFile() *PageFile {
+	var pf = new(PageFile)
+
+	return pf
+}
+
+func (pf *PageFile) freeSize() error {
+	var totalNumberOfBytes uint64
+	var totalNumberOfFreeBytes uint64
+	err := windows.GetDiskFreeSpaceEx(nil, nil, &totalNumberOfBytes, &totalNumberOfFreeBytes)
+	if err != nil {
+		return err
+	}
+	pf.fs.fsTotalSize = totalNumberOfBytes
+	pf.fs.fsFreeSize = totalNumberOfFreeBytes
+	return nil
+}
+
+func (pf *PageFile) checkFs() error {
+	ap, err := filepath.Abs(pf.originalName)
+	if err != nil {
+		return err
+	}
+	ptr, err := syscall.UTF16PtrFromString(ap[:3])
+	if err != nil {
+		return err
+	}
+	var volumeName [syscall.MAX_PATH + 1]uint16
+	var fsName [syscall.MAX_PATH + 1]uint16
+	var serialNumber, maxComponentLen, fileSystemFlags uint32
+	// Get volume information
+	err = windows.GetVolumeInformation(
+		ptr,
+		&volumeName[0],
+		uint32(len(volumeName)),
+		&serialNumber,
+		&maxComponentLen,
+		&fileSystemFlags,
+		&fsName[0],
+		uint32(len(fsName)),
+	)
+	if err != nil {
+		return err
+	}
+
+	var fsType = syscall.UTF16ToString(fsName[:])
+	pf.fs.fsType = fsType
+	pf.maxPageCount = conf.FsMaxPageCount[fsType]
+	return nil
+}
+
+func (pf *PageFile) checkAppend() error {
+	var newSize = int(pf.pageCount+1) * conf.FilePageSize
+	// 检查磁盘空间是否用完
+	if uint64(newSize) > pf.fs.fsFreeSize {
+		return errors.New(conf.ErrPageFileFull)
+	}
+	// 检查现有空间是否用完
+	if int64(newSize) <= pf.fi.Size() {
+		return nil
+	}
+	return pf.expand()
+}
+
+func (pf *PageFile) expand() error {
+	var newSize = pf.pageCount * 2
+	if int(newSize) > pf.maxPageCount {
+		return errors.New(conf.ErrPageFileFull)
+	} else {
+		err := pf.fp.Truncate(int64(newSize))
+		if err != nil {
+			return err
+		}
+		pf.pageCount = newSize
+		return nil
+	}
 }
 
 func (pf *PageFile) Open(filename string) error {
@@ -36,6 +125,14 @@ func (pf *PageFile) Open(filename string) error {
 }
 
 func (pf *PageFile) Create(filename string) error {
+	err := pf.checkFs()
+	if err != nil {
+		return err
+	}
+	err = pf.freeSize()
+	if err != nil {
+		return err
+	}
 	var originalName = fmt.Sprintf("%s/%s.cs", conf.Workspace, filename)
 	var tempName = fmt.Sprintf("%s/%s.cs.tmp", conf.Workspace, conf.RandomInt(5))
 	pf.originalName = originalName
@@ -111,7 +208,11 @@ func (pf *PageFile) Read(filename string) error {
 func (pf *PageFile) Flush() error {
 	if pf.dirty {
 		pf.dirty = false
-		return pf.fp.Sync()
+		err := pf.fp.Sync()
+		if err != nil {
+			return err
+		}
+		return pf.freeSize()
 	} else {
 		return nil
 	}
@@ -154,5 +255,5 @@ func (pf *PageFile) PageByType(pType uint8, dbId uint8) (*Page, error) {
 			return pf.Page(i, true)
 		}
 	}
-	return nil, errors.New(conf.ErrPageNotFound)
+	return pf.AppendPage(pf.pageCount, pType, dbId)
 }

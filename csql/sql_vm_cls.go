@@ -65,7 +65,8 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8) error {
 			var name = v.dm[arg]
 			var pf = v.pfm[name]
 			if pf == nil {
-				pf = new(cfs.PageFile)
+				v.pfm[name] = new(cfs.PageFile)
+				pf = v.pfm[name]
 			}
 			var dbName = strings.ToLower(name)
 			err := pf.Open(dbName)

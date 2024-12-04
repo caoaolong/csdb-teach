@@ -143,8 +143,11 @@ func (p *Page) Scan() error {
 	return nil
 }
 
-func (pf *PageFile) AppendPage(parentId uint16, attr uint8, db uint8) error {
-	// TODO: 判断是否可以追加
+func (pf *PageFile) AppendPage(parentId uint16, attr uint8, db uint8) (*Page, error) {
+	err := pf.checkAppend()
+	if err != nil {
+		return nil, err
+	}
 	// 初始化 Page
 	var page = NewEmptyPage(conf.FileHeaderSize + int64(parentId)*int64(conf.FilePageSize))
 	pf.pages[pf.pageCount] = page
@@ -161,12 +164,12 @@ func (pf *PageFile) AppendPage(parentId uint16, attr uint8, db uint8) error {
 	page.dbId = db
 	page.lOffset = 0
 	// 写入 Page
-	err := page.Write(pf, []byte{}, true)
+	err = page.Write(pf, []byte{}, true)
 	if err != nil {
-		return err
+		return page, err
 	}
 	pf.dirty = true
-	return nil
+	return page, nil
 }
 
 func (pf *PageFile) ClearPage(index uint16) error {

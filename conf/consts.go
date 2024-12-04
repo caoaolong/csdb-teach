@@ -3,8 +3,13 @@ package conf
 const (
 	Workspace = "../cs"
 
-	FilePageSize      int = 1024 * 4
-	FilePageInitCount int = 1024
+	FsTypeNtfs  = "NTFS"
+	FsTypeFat32 = "FAT32"
+
+	FilePageSize         int = 1024 * 4
+	FilePageInitCount    int = 1024
+	FilePageNtfsMaxCount int = 4 * 1024 * 1024 * 1024 * 1024 * 1024 // NTFS单个文件最大为16EB
+	FilePageFat32MxCount     = 1 * 1024 * 1024                      // FAT32单个文件最大为4GB
 
 	FileHeaderSize = 16
 	PageHeaderSize = 16
@@ -13,6 +18,11 @@ const (
 	FileHeaderMagic = "CS.DB"
 )
 
+var FsMaxPageCount = map[string]int{
+	FsTypeNtfs:  FilePageNtfsMaxCount,
+	FsTypeFat32: FilePageFat32MxCount,
+}
+
 const (
 	ErrFileFormat   = "this file is not a page file"
 	ErrPageIndex    = "this page index out of range"
@@ -20,6 +30,7 @@ const (
 	ErrRowType      = "this is an unknown row type"
 	ErrPageNotFound = "can't find the page of the specified type"
 	ErrSyntax       = "syntax error"
+	ErrPageFileFull = "page file is full"
 )
 
 const (
