@@ -26,8 +26,16 @@ const (
 	OpTypeAttr
 )
 
+const (
+	KwCreate   = "CREATE"
+	KwDatabase = "DATABASE"
+	KwTable    = "TABLE"
+	KwView     = "VIEW"
+	KwUse      = "USE"
+)
+
 var keywords = []string{
-	"CREATE", "DATABASE", "TABLE", "VIEW",
+	KwCreate, KwDatabase, KwTable, KwView, KwUse,
 }
 
 func NewToken(value string, tType uint8) Token {

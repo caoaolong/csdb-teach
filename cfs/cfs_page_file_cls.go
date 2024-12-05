@@ -105,7 +105,7 @@ func (pf *PageFile) expand() error {
 	if int(newSize) > pf.maxPageCount {
 		return errors.New(conf.ErrPageFileFull)
 	} else {
-		err := pf.fp.Truncate(int64(newSize))
+		err := pf.fp.Truncate(int64(newSize) + conf.FileHeaderSize)
 		if err != nil {
 			return err
 		}

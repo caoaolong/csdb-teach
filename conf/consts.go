@@ -24,13 +24,14 @@ var FsMaxPageCount = map[string]int{
 }
 
 const (
-	ErrFileFormat   = "this file is not a page file"
-	ErrPageIndex    = "this page index out of range"
-	ErrNameTooLong  = "this name is too long"
-	ErrRowType      = "this is an unknown row type"
-	ErrPageNotFound = "can't find the page of the specified type"
-	ErrSyntax       = "syntax error"
-	ErrPageFileFull = "page file is full"
+	ErrFileFormat       = "this file is not a page file"
+	ErrPageIndex        = "this page index out of range"
+	ErrNameTooLong      = "this name is too long"
+	ErrRowType          = "this is an unknown row type"
+	ErrPageNotFound     = "can't find the page of the specified type"
+	ErrSyntax           = "syntax error"
+	ErrPageFileFull     = "page file is full"
+	ErrDatabaseNotFound = "can't find the database"
 )
 
 const (

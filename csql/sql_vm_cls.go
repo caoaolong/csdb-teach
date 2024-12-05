@@ -4,32 +4,52 @@ import (
 	"csdb-teach/cds"
 	"csdb-teach/cfs"
 	"csdb-teach/conf"
+	"errors"
 	"strings"
 )
 
+type OpData struct {
+	Value  string
+	OmCode uint8
+}
+
 type SqlVm struct {
-	dm  []string
-	cm  map[string]uint8
-	om  map[string]uint8
+	// data map
+	dm []OpData
+	// code map
+	cm map[string]uint8
+	// object map
+	om map[string]uint8
+	// page file map
 	pfm map[string]*cfs.PageFile
+	// current database name
+	cdb *cds.Database
+	// databases
+	dbs []*cds.Database
 }
 
 const (
-	OpCodeCreate = 1
+	_ = iota
+	OpCodeCreate
+	OpCodeUse
+)
 
+const (
+	_              = iota
 	OmCodeDatabase = 1
 	OmCodeTable    = 2
 )
 
 func newVm() *SqlVm {
 	var vm = new(SqlVm)
-	vm.dm = make([]string, 0)
+	vm.dm = make([]OpData, 0)
 	vm.cm = map[string]uint8{
-		"CREATE": OpCodeCreate,
+		KwCreate: OpCodeCreate,
+		KwUse:    OpCodeUse,
 	}
 	vm.om = map[string]uint8{
-		"DATABASE": OmCodeDatabase,
-		"TABLE":    OmCodeTable,
+		KwDatabase: OmCodeDatabase,
+		KwTable:    OmCodeTable,
 	}
 	vm.pfm = make(map[string]*cfs.PageFile)
 	conf.InitIDFile()
@@ -62,7 +82,7 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8) error {
 	case OpCodeCreate:
 		switch object {
 		case OmCodeDatabase:
-			var name = v.dm[arg]
+			var name = v.dm[arg].Value
 			var pf = v.pfm[name]
 			if pf == nil {
 				v.pfm[name] = new(cfs.PageFile)
@@ -73,11 +93,25 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8) error {
 			if err != nil {
 				return err
 			}
-			_, err = cds.NewDatabase(pf, name)
-			if err != nil {
+			var db *cds.Database
+			if db, err = cds.NewDatabase(pf, name); err != nil {
 				return err
 			}
+			if err = pf.Flush(); err != nil {
+				return err
+			}
+			v.dm[arg].OmCode = OmCodeDatabase
+			v.dbs = append(v.dbs, db)
 		}
+		return nil
+	case OpCodeUse:
+		for _, db := range v.dbs {
+			if db.Name == v.dm[arg].Value {
+				v.cdb = db
+				return nil
+			}
+		}
+		return errors.New(conf.ErrDatabaseNotFound)
 	}
 	return nil
 }

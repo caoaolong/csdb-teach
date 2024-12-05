@@ -4,9 +4,12 @@ import (
 	"testing"
 )
 
-func TestSqlEngine(t *testing.T) {
+var script = `
+create database school;
+use school;
+`
 
-	var script = "create database school;"
+func TestSqlEngine(t *testing.T) {
 
 	// 创建SQL引擎
 	var se = NewSqlEngine()

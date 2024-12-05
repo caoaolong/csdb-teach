@@ -1,6 +1,7 @@
 package csql
 
 import (
+	"csdb-teach/cds"
 	list "github.com/duke-git/lancet/v2/datastructure/list"
 	"slices"
 	"strings"
@@ -24,6 +25,10 @@ func NewSqlEngine() *SqlEngine {
 	return _se
 }
 
+func (s *SqlEngine) Database() *cds.Database {
+	return s.vm.cdb
+}
+
 func (s *SqlEngine) Run(instructions []uint32) error {
 	return s.vm.run(instructions)
 }
@@ -36,7 +41,9 @@ func (s *SqlEngine) Close() {
 
 func (s *SqlEngine) PushData(value string) uint8 {
 	var index = len(s.vm.dm)
-	s.vm.dm = append(s.vm.dm, value)
+	s.vm.dm = append(s.vm.dm, OpData{
+		Value: value,
+	})
 	return uint8(index)
 }
 
@@ -125,6 +132,9 @@ func (s *SqlEngine) Compile(trees []*ASTTree) ([]uint32, error) {
 		switch tree.Root.OpValue {
 		case OpCodeCreate:
 			instructions = append(instructions, NewSqlInc(tree.Root.OpValue, tree.Root.Next.OpValue, tree.Root.Next.Next.OpValue))
+			break
+		case OpCodeUse:
+			instructions = append(instructions, NewSqlInc(tree.Root.OpValue, 0, tree.Root.Next.OpValue))
 			break
 		}
 	}

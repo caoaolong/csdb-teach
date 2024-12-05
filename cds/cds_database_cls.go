@@ -8,18 +8,18 @@ import (
 
 type Database struct {
 	id   uint8
-	name string
+	Name string
 }
 
 func NewDatabase(pf *cfs.PageFile, name string) (*Database, error) {
 	var database = new(Database)
-	database.name = name
+	database.Name = name
 	dbId, err := conf.IDW.Database()
 	if err != nil {
 		return nil, err
 	}
 	database.id = dbId
-	meta, err := row.NewMetaRow(conf.RowTypeDatabase, 0, dbId, 0, 0, 0, database.name)
+	meta, err := row.NewMetaRow(conf.RowTypeDatabase, 0, dbId, 0, 0, 0, database.Name)
 	if err != nil {
 		return nil, err
 	}

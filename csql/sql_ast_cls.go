@@ -52,6 +52,10 @@ func (a *ASTTree) Build() (*ASTTree, error) {
 		} else {
 			return nil, errors.New(conf.ErrSyntax)
 		}
+		break
+	case OpCodeUse:
+		a.Root.Next = NewASTNode(a.Tokens[1])
+		break
 	}
 	return a, nil
 }
