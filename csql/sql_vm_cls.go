@@ -4,7 +4,8 @@ import (
 	"csdb-teach/cds"
 	"csdb-teach/cfs"
 	"csdb-teach/conf"
-	"errors"
+	"csdb-teach/row"
+	"csdb-teach/utils"
 	"strings"
 )
 
@@ -105,13 +106,33 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8) error {
 		}
 		return nil
 	case OpCodeUse:
+		// 查找当前已经打开的数据库中是否存在该数据库
 		for _, db := range v.dbs {
 			if db.Name == v.dm[arg].Value {
 				v.cdb = db
 				return nil
 			}
 		}
-		return errors.New(conf.ErrDatabaseNotFound)
+		var dbName = strings.ToLower(v.dm[arg].Value)
+		// 如果不存在则尝试从磁盘中读取
+		v.pfm[dbName] = new(cfs.PageFile)
+		var pf = v.pfm[dbName]
+		err := pf.Read(dbName)
+		if err != nil {
+			return err
+		}
+		page, err := pf.Page(0, true)
+		if err != nil {
+			return err
+		}
+		data, err := page.FindRow(conf.RowTypeDatabase, dbName)
+		if err != nil {
+			return err
+		}
+		var db = utils.ToDatabase(row.NewEmptyMeta().Read(data))
+		v.dbs = append(v.dbs, db)
+		v.cdb = db
+		return nil
 	}
 	return nil
 }

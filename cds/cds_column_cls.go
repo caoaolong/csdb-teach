@@ -20,11 +20,11 @@ func NewColumn(pf *cfs.PageFile, db *Database, tb *Table, name string, mType uin
 		return nil, err
 	}
 	column.id = uint32(colId)
-	meta, err := row.NewMetaRow(conf.RowTypeColumn, column.cType, db.id, tb.id, uint32(colId), mType, column.name)
+	meta, err := row.NewMetaRow(conf.RowTypeColumn, column.cType, db.Id, tb.id, uint32(colId), mType, column.name)
 	if err != nil {
 		return nil, err
 	}
-	page, err := pf.PageByType(conf.PageTypeMeta, db.id)
+	page, err := pf.PageByType(conf.PageTypeMeta, db.Id)
 	if err != nil {
 		return nil, err
 	}

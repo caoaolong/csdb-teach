@@ -12,7 +12,7 @@ import (
 type Meta struct {
 	tp     uint8
 	attr   uint8
-	dbId   uint8
+	DbId   uint8
 	tbId   uint32
 	colId  uint32
 	mType  uint16
@@ -34,7 +34,7 @@ func NewMetaRow(tp, attr, dbId uint8, tbId, colId uint32, mType uint16, value st
 	var meta = new(Meta)
 	meta.tp = tp
 	meta.attr = attr | conf.AttrExists
-	meta.dbId = dbId
+	meta.DbId = dbId
 	meta.tbId = tbId
 	meta.colId = colId
 	meta.mType = mType
@@ -45,11 +45,25 @@ func NewMetaRow(tp, attr, dbId uint8, tbId, colId uint32, mType uint16, value st
 	return meta, nil
 }
 
+func (m *Meta) Read(data []byte) *Meta {
+	m.tp = data[0]
+	m.attr = data[1]
+	m.DbId = data[2]
+	m.tbId = binary.BigEndian.Uint32(data[3:7])
+	m.tbId = binary.BigEndian.Uint32(data[7:11])
+	m.mType = binary.BigEndian.Uint16(data[11:13])
+	m.unused = binary.BigEndian.Uint16(data[13:15])
+	m.nl = data[15]
+	m.data = make([]byte, m.nl)
+	copy(m.data, data[16:])
+	return m
+}
+
 func (m *Meta) Encode() []byte {
 	var data = make([]byte, conf.RowHeaderSize+m.nl)
 	data[0] = m.tp
 	data[1] = m.attr
-	data[2] = m.dbId
+	data[2] = m.DbId
 	binary.BigEndian.PutUint32(data[3:7], m.tbId)
 	binary.BigEndian.PutUint32(data[7:11], m.tbId)
 	binary.BigEndian.PutUint16(data[11:15], m.mType)
@@ -62,7 +76,7 @@ func (m *Meta) Encode() []byte {
 func (m *Meta) Clean() {
 	m.tp = 0
 	m.attr = 0xFF & m.attr
-	m.dbId = 0
+	m.DbId = 0
 	m.tbId = 0
 	m.colId = 0
 	m.nl = 0
@@ -70,17 +84,7 @@ func (m *Meta) Clean() {
 }
 
 func (m *Meta) Decode(page *cfs.Page, offset int64) *Meta {
-	var data = page.Raw()[offset:]
-	m.tp = data[0]
-	m.attr = data[1]
-	m.dbId = data[2]
-	m.tbId = binary.BigEndian.Uint32(data[3:7])
-	m.tbId = binary.BigEndian.Uint32(data[7:11])
-	m.mType = binary.BigEndian.Uint16(data[11:13])
-	m.unused = binary.BigEndian.Uint16(data[13:15])
-	m.nl = data[15]
-	m.data = make([]byte, m.nl)
-	copy(m.data, data[16:])
+	m.Read(page.Raw()[offset:])
 	return m
 }
 

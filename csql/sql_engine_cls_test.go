@@ -5,7 +5,6 @@ import (
 )
 
 var script = `
-create database school;
 use school;
 `
 

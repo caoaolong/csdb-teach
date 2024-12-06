@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"strings"
 )
 
 type Page struct {
@@ -141,6 +142,19 @@ func (p *Page) Scan() error {
 		}
 	}
 	return nil
+}
+
+func (p *Page) FindRow(rowType uint8, value string) ([]byte, error) {
+	value = strings.ToUpper(value)
+	for _, offset := range p.entries {
+		if conf.RowType(p.data[offset]) == rowType {
+			var nl = int(p.data[offset+15])
+			if value == string(p.data[offset+16:int(offset)+16+nl]) {
+				return p.data[offset : int(offset)+conf.RowHeaderSize+nl], nil
+			}
+		}
+	}
+	return nil, errors.New(conf.ErrPageNotFound)
 }
 
 func (pf *PageFile) AppendPage(parentId uint16, attr uint8, db uint8) (*Page, error) {
