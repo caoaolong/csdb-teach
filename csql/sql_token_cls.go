@@ -4,7 +4,7 @@ type Token struct {
 	Value   string
 	Type    uint8
 	OpType  uint8
-	OpValue uint8
+	OpValue uint16
 }
 
 const (
@@ -15,6 +15,7 @@ const (
 	TokenTypeString
 	TokenTypeSymbol
 	TokenTypeDelimiter
+	TokenTypeDataType
 	TokenTypeComment
 )
 
@@ -36,6 +37,25 @@ const (
 
 var keywords = []string{
 	KwCreate, KwDatabase, KwTable, KwView, KwUse,
+}
+
+const (
+	DtInt      = "INT"
+	DtTinyInt  = "TINYINT"
+	DtSmallInt = "SMALLINT"
+	DtBigInt   = "BIGINT"
+	DtFloat    = "FLOAT"
+	DtDouble   = "DOUBLE"
+	DtVarChar  = "VARCHAR"
+)
+
+var datatypes = []string{
+	DtInt,
+	DtTinyInt,
+	DtSmallInt,
+	DtBigInt,
+	DtFloat,
+	DtDouble,
 }
 
 func NewToken(value string, tType uint8) Token {

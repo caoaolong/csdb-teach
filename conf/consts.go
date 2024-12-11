@@ -57,9 +57,9 @@ const (
 
 const (
 	ColumnTypeTinyInt    = 0b0000_0000_0000_0001
-	ColumnTypeMediumInt  = 0b0000_0000_0000_0010
+	ColumnTypeSmallInt   = 0b0000_0000_0000_0010
 	ColumnTypeDefaultInt = 0b0000_0000_0000_0100
-	ColumnTypeBigIntInt  = 0b0000_0000_0000_1000
+	ColumnTypeBigInt     = 0b0000_0000_0000_1000
 	ColumnTypeBit        = 0b0000_0000_0000_0011
 
 	ColumnTypeFloat  = 0b0000_0000_0001_0000

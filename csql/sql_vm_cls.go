@@ -7,6 +7,7 @@ import (
 	"csdb-teach/row"
 	"csdb-teach/utils"
 	"strings"
+	"unsafe"
 )
 
 type OpData struct {
@@ -15,16 +16,27 @@ type OpData struct {
 }
 
 type SqlVm struct {
+	/********* memory **********/
 	// data map
 	dm []OpData
 	// code map
 	cm map[string]uint8
 	// object map
 	om map[string]uint8
+	// datatype map
+	dtm map[string]uint16
 	// page file map
 	pfm map[string]*cfs.PageFile
-	// current database name
-	cdb *cds.Database
+
+	/********* registers **********/
+	// database pointer register
+	dpr int64
+	// table pointer register
+	tpr int64
+	// column pointer register
+	cpr int64
+
+	/********* attributes **********/
 	// databases
 	dbs []*cds.Database
 }
@@ -33,12 +45,14 @@ const (
 	_ = iota
 	OpCodeCreate
 	OpCodeUse
+	OpCodeSet
 )
 
 const (
-	_              = iota
-	OmCodeDatabase = 1
-	OmCodeTable    = 2
+	_ = iota
+	OmCodeDatabase
+	OmCodeTable
+	OmCodeColumn
 )
 
 func newVm() *SqlVm {
@@ -52,25 +66,35 @@ func newVm() *SqlVm {
 		KwDatabase: OmCodeDatabase,
 		KwTable:    OmCodeTable,
 	}
+	vm.dtm = map[string]uint16{
+		DtInt:      conf.ColumnTypeDefaultInt,
+		DtBigInt:   conf.ColumnTypeBigInt,
+		DtSmallInt: conf.ColumnTypeSmallInt,
+		DtDouble:   conf.ColumnTypeDouble,
+		DtFloat:    conf.ColumnTypeFloat,
+		DtVarChar:  conf.ColumnTypeVarchar,
+	}
 	vm.pfm = make(map[string]*cfs.PageFile)
 	conf.InitIDFile()
 	return vm
 }
 
-func NewSqlInc(opcode, object, arg uint8) uint32 {
-	var inc uint32 = 0
-	inc |= uint32(opcode) << 16
-	inc |= uint32(object) << 8
-	inc |= uint32(arg)
+func NewSqlInc(opcode, object, arg uint8, attr uint16) uint64 {
+	var inc uint64 = 0
+	inc |= uint64(attr) << 32
+	inc |= uint64(opcode) << 16
+	inc |= uint64(object) << 8
+	inc |= uint64(arg)
 	return inc
 }
 
-func (v *SqlVm) run(instructions []uint32) error {
+func (v *SqlVm) run(instructions []uint64) error {
 	for _, instruction := range instructions {
+		var attr = uint16(instruction & 0xFF00000000 >> 32)
 		var opcode = uint8(instruction & 0xFF0000 >> 16)
 		var object = uint8(instruction & 0xFF00 >> 8)
 		var arg = uint8(instruction & 0xFF)
-		err := v.execInstr(opcode, object, arg)
+		err := v.execInstr(opcode, object, arg, attr)
 		if err != nil {
 			return err
 		}
@@ -78,7 +102,7 @@ func (v *SqlVm) run(instructions []uint32) error {
 	return nil
 }
 
-func (v *SqlVm) execInstr(opcode, object, arg uint8) error {
+func (v *SqlVm) execInstr(opcode, object, arg uint8, attr uint16) error {
 	switch opcode {
 	case OpCodeCreate:
 		switch object {
@@ -103,13 +127,20 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8) error {
 			}
 			v.dm[arg].OmCode = OmCodeDatabase
 			v.dbs = append(v.dbs, db)
+			return nil
+		case OmCodeTable:
+			// TODO: 创建表
+			return nil
+		case OmCodeColumn:
+			// TODO: 创建字段
+			return nil
 		}
 		return nil
 	case OpCodeUse:
 		// 查找当前已经打开的数据库中是否存在该数据库
 		for _, db := range v.dbs {
 			if db.Name == v.dm[arg].Value {
-				v.cdb = db
+				v.dpr = int64(uintptr(unsafe.Pointer(db)))
 				return nil
 			}
 		}
@@ -131,7 +162,10 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8) error {
 		}
 		var db = utils.ToDatabase(row.NewEmptyMeta().Read(data))
 		v.dbs = append(v.dbs, db)
-		v.cdb = db
+		v.dpr = int64(uintptr(unsafe.Pointer(db)))
+		return nil
+	case OpCodeSet:
+		// TODO: 设置字段属性
 		return nil
 	}
 	return nil

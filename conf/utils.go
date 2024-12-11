@@ -2,6 +2,7 @@ package conf
 
 import (
 	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -31,4 +32,9 @@ func RowType(tp byte) uint8 {
 	} else {
 		return RowTypeUnknown
 	}
+}
+
+func IsNumber(v string) (bool, int64) {
+	n, err := strconv.ParseInt(v, 10, 64)
+	return err == nil, n
 }

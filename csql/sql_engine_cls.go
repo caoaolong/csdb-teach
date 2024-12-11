@@ -2,10 +2,12 @@ package csql
 
 import (
 	"csdb-teach/cds"
+	"csdb-teach/conf"
 	list "github.com/duke-git/lancet/v2/datastructure/list"
 	"slices"
 	"strings"
 	"sync"
+	"unsafe"
 )
 
 type SqlEngine struct {
@@ -26,10 +28,10 @@ func NewSqlEngine() *SqlEngine {
 }
 
 func (s *SqlEngine) Database() *cds.Database {
-	return s.vm.cdb
+	return (*cds.Database)(unsafe.Pointer(uintptr(s.vm.dpr)))
 }
 
-func (s *SqlEngine) Run(instructions []uint32) error {
+func (s *SqlEngine) Run(instructions []uint64) error {
 	return s.vm.run(instructions)
 }
 
@@ -52,22 +54,31 @@ func (s *SqlEngine) PushToken(token Token) {
 		return
 	}
 	var value = strings.ToUpper(token.Value)
+	if is, v := conf.IsNumber(value); is {
+		token.OpType = TokenTypeNumber
+		token.OpValue = uint16(v)
+		s.tokens.Push(token)
+		return
+	}
 	var opType uint8 = 0
-	var opValue uint8 = 0
+	var opValue uint16 = 0
 	if slices.Contains(keywords, value) {
-		opValue = s.vm.cm[value]
+		opValue = uint16(s.vm.cm[value])
 		opType = OpTypeCode
 		if opValue == 0 {
-			opValue = s.vm.om[value]
+			opValue = uint16(s.vm.om[value])
 			opType = OpTypeObject
 			if opValue == 0 {
 				opType = OpTypeData
-				opValue = s.PushData(token.Value)
+				opValue = uint16(s.PushData(token.Value))
 			}
 		}
+	} else if slices.Contains(datatypes, value) {
+		opValue = s.vm.dtm[value]
+		opType = OpTypeAttr
 	} else {
 		opType = OpTypeData
-		opValue = s.PushData(token.Value)
+		opValue = uint16(s.PushData(token.Value))
 	}
 	token.OpType = opType
 	token.OpValue = opValue
@@ -93,9 +104,11 @@ func (s *SqlEngine) ParseToken(script string) {
 		case ';':
 			s.PushToken(NewToken(value.String(), TokenTypeIdentifier))
 			value.Reset()
-			s.PushToken(NewToken(";", TokenTypeDelimiter))
+			s.PushToken(NewToken(string(char), TokenTypeDelimiter))
 		case ',', '(', ')':
-			s.PushToken(NewToken(value.String(), TokenTypeSymbol))
+			s.PushToken(NewToken(value.String(), TokenTypeIdentifier))
+			value.Reset()
+			s.PushToken(NewToken(string(char), TokenTypeSymbol))
 			break
 		default:
 			value.WriteRune(char)
@@ -126,15 +139,27 @@ func (s *SqlEngine) ParseSyntax() ([]*ASTTree, error) {
 	return trees, nil
 }
 
-func (s *SqlEngine) Compile(trees []*ASTTree) ([]uint32, error) {
-	var instructions = make([]uint32, 0)
+func (s *SqlEngine) Compile(trees []*ASTTree) ([]uint64, error) {
+	var instructions = make([]uint64, 0)
 	for _, tree := range trees {
 		switch tree.Root.OpValue {
 		case OpCodeCreate:
-			instructions = append(instructions, NewSqlInc(tree.Root.OpValue, tree.Root.Next.OpValue, tree.Root.Next.Next.OpValue))
+			// 创建数据库或者表
+			instructions = append(instructions, NewSqlInc(
+				uint8(tree.Root.OpValue), uint8(tree.Root.Next.OpValue), uint8(tree.Root.Next.Next.OpValue), 0))
+			// 创建表的字段
+			for _, child := range tree.Children {
+				instructions = append(instructions, NewSqlInc(
+					uint8(tree.Root.OpValue), uint8(tree.Root.Next.OpValue+1), uint8(child.Root.OpValue),
+					child.Root.Next.OpValue))
+				if len(child.Tokens) > 2 {
+					instructions = append(instructions, NewSqlInc(OpCodeSet, OmCodeColumn, 0, child.Root.Next.Next.OpValue))
+				}
+			}
 			break
 		case OpCodeUse:
-			instructions = append(instructions, NewSqlInc(tree.Root.OpValue, 0, tree.Root.Next.OpValue))
+			instructions = append(instructions, NewSqlInc(
+				uint8(tree.Root.OpValue), 0, uint8(tree.Root.Next.OpValue), 0))
 			break
 		}
 	}

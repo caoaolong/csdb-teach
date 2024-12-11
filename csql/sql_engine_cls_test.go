@@ -6,6 +6,10 @@ import (
 
 var script = `
 use school;
+create table class(
+class_id int,
+class_name varchar(20)
+);
 `
 
 func TestSqlEngine(t *testing.T) {
