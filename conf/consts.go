@@ -40,6 +40,9 @@ const (
 	AttrStructure = 0b00001000
 	AttrString    = 0b00001100
 
+	SetTypeLength = 1
+	SetTypeBind   = 2
+
 	PageTypeMeta   = 0b00001000
 	PageTypeData   = 0b00010000
 	PageTypeString = 0b00100000

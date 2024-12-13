@@ -153,7 +153,10 @@ func (s *SqlEngine) Compile(trees []*ASTTree) ([]uint64, error) {
 					uint8(tree.Root.OpValue), uint8(tree.Root.Next.OpValue+1), uint8(child.Root.OpValue),
 					child.Root.Next.OpValue))
 				if len(child.Tokens) > 2 {
-					instructions = append(instructions, NewSqlInc(OpCodeSet, OmCodeColumn, 0, child.Root.Next.Next.OpValue))
+					instructions = append(instructions, NewSqlInc(OpCodeSet, OmCodeColumn, conf.SetTypeLength, child.Root.Next.Next.OpValue))
+					if len(child.Tokens) > 3 {
+						instructions = append(instructions, NewSqlInc(OpCodeSet, OmCodeColumn, conf.SetTypeBind, child.Root.Next.Next.Next.OpValue))
+					}
 				}
 			}
 			break

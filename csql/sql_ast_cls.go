@@ -52,7 +52,7 @@ func (a *ASTTree) Build() (*ASTTree, error) {
 				} else {
 					return nil, errors.New(conf.ErrSyntax)
 				}
-			} else if a.Tokens[2].OpValue == OmCodeTable {
+			} else if a.Tokens[1].OpValue == OmCodeTable {
 				return a.buildCreateTableTree()
 			}
 		} else {

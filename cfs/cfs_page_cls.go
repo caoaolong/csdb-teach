@@ -59,6 +59,19 @@ func (p *Page) Raw() []byte {
 	return p.data
 }
 
+func (p *Page) Cover(pf *PageFile, offset int64, data []byte) error {
+	_, err := pf.fp.Seek(offset, io.SeekStart)
+	if err != nil {
+		return err
+	}
+	_, err = pf.fp.Write(data)
+	if err != nil {
+		return err
+	}
+	pf.dirty = true
+	return nil
+}
+
 func (p *Page) Write(pf *PageFile, data []byte, overlay bool) error {
 	if p.data == nil {
 		p.data = make([]byte, conf.FilePageSize-conf.PageHeaderSize)
@@ -85,8 +98,11 @@ func (p *Page) Write(pf *PageFile, data []byte, overlay bool) error {
 		return err
 	}
 	_, err = pf.fp.Write(p.data)
+	if err != nil {
+		return err
+	}
 	pf.dirty = true
-	return err
+	return nil
 }
 
 func (p *Page) Read(pf *PageFile, body bool) error {
@@ -144,7 +160,13 @@ func (p *Page) Scan() error {
 	return nil
 }
 
-func (p *Page) FindRow(rowType uint8, value string) ([]byte, error) {
+func (p *Page) FindRowByName(rowType uint8, value string) ([]byte, error) {
+	if p.entries == nil {
+		err := p.Scan()
+		if err != nil {
+			return nil, err
+		}
+	}
 	value = strings.ToUpper(value)
 	for _, offset := range p.entries {
 		if conf.RowType(p.data[offset]) == rowType {
@@ -155,6 +177,38 @@ func (p *Page) FindRow(rowType uint8, value string) ([]byte, error) {
 		}
 	}
 	return nil, errors.New(conf.ErrPageNotFound)
+}
+
+func (p *Page) FindRowByID(rowType uint8, id uint32) ([]byte, int64, error) {
+	var found = false
+	if p.entries == nil {
+		err := p.Scan()
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+	for _, offset := range p.entries {
+		if conf.RowType(p.data[offset]) == rowType {
+			if rowType == conf.RowTypeTable {
+				if id == binary.BigEndian.Uint32(p.data[offset+3:offset+7]) {
+					found = true
+				}
+			} else if rowType == conf.RowTypeColumn {
+				if id == binary.BigEndian.Uint32(p.data[offset+7:offset+11]) {
+					found = true
+				}
+			} else if rowType == conf.RowTypeDatabase {
+				if id == uint32(p.data[offset+2]) {
+					found = true
+				}
+			}
+			if found {
+				return p.data[offset : int(offset)+conf.RowHeaderSize+int(p.data[offset+15])],
+					offset + conf.FileHeaderSize + conf.PageHeaderSize, nil
+			}
+		}
+	}
+	return nil, 0, errors.New(conf.ErrPageNotFound)
 }
 
 func (pf *PageFile) AppendPage(parentId uint16, attr uint8, db uint8) (*Page, error) {

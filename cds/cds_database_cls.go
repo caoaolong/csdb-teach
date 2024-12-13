@@ -7,7 +7,7 @@ import (
 )
 
 type Database struct {
-	Id   uint8
+	ID   uint8
 	Name string
 }
 
@@ -18,7 +18,7 @@ func NewDatabase(pf *cfs.PageFile, name string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	database.Id = dbId
+	database.ID = dbId
 	meta, err := row.NewMetaRow(conf.RowTypeDatabase, 0, dbId, 0, 0, 0, database.Name)
 	if err != nil {
 		return nil, err

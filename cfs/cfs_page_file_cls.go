@@ -158,6 +158,7 @@ func (pf *PageFile) Create(filename string) error {
 	}
 	// 设置文件头
 	_, err = pf.fp.Write([]byte(conf.FileHeaderMagic))
+	pf.pageCount = uint16(conf.FilePageInitCount)
 	pf.pages = make([]*Page, conf.FilePageInitCount)
 	pf.dirty = true
 	return err
@@ -246,15 +247,21 @@ func (pf *PageFile) Page(index int, body bool) (*Page, error) {
 }
 
 func (pf *PageFile) PageByType(pType uint8, dbId uint8) (*Page, error) {
-	var page *Page
+	var err error
 	for i := 0; i < int(pf.pageCount); i++ {
-		page = pf.pages[i]
-		if page.Type() == 0 {
-			page.attr |= pType
-			page.dbId = dbId
+		if pf.pages[i] == nil {
+			pf.pages[i] = NewEmptyPage(conf.FileHeaderSize + int64(conf.PageHeaderSize*i))
+			pf.pages[i], err = pf.Page(i, true)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if pf.pages[i].Type() == 0 {
+			pf.pages[i].attr |= pType
+			pf.pages[i].dbId = dbId
 			return pf.Page(i, false)
 		}
-		if page.Type() == pType {
+		if pf.pages[i].Type() == pType {
 			return pf.Page(i, true)
 		}
 	}

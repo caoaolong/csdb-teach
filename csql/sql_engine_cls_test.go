@@ -5,6 +5,7 @@ import (
 )
 
 var script = `
+create database school;
 use school;
 create table class(
 class_id int,

@@ -35,6 +35,8 @@ type SqlVm struct {
 	tpr int64
 	// column pointer register
 	cpr int64
+	// page file register
+	pfr int64
 
 	/********* attributes **********/
 	// databases
@@ -122,51 +124,84 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8, attr uint16) error {
 			if db, err = cds.NewDatabase(pf, name); err != nil {
 				return err
 			}
-			if err = pf.Flush(); err != nil {
-				return err
-			}
 			v.dm[arg].OmCode = OmCodeDatabase
 			v.dbs = append(v.dbs, db)
-			return nil
+			break
 		case OmCodeTable:
-			// TODO: 创建表
-			return nil
+			var pf = (*cfs.PageFile)(unsafe.Pointer(uintptr(v.pfr)))
+			var db = (*cds.Database)(unsafe.Pointer(uintptr(v.dpr)))
+			var name = v.dm[arg].Value
+			tb, err := cds.NewTable(pf, db, name)
+			if err != nil {
+				return err
+			}
+			v.tpr = int64(uintptr(unsafe.Pointer(tb)))
+			break
 		case OmCodeColumn:
-			// TODO: 创建字段
-			return nil
+			var pf = (*cfs.PageFile)(unsafe.Pointer(uintptr(v.pfr)))
+			var db = (*cds.Database)(unsafe.Pointer(uintptr(v.dpr)))
+			var tb = (*cds.Table)(unsafe.Pointer(uintptr(v.tpr)))
+			var name = v.dm[arg].Value
+			col, err := cds.NewColumn(pf, db, tb, name, attr)
+			if err != nil {
+				return err
+			}
+			v.cpr = int64(uintptr(unsafe.Pointer(col)))
+			break
 		}
-		return nil
+		break
 	case OpCodeUse:
 		// 查找当前已经打开的数据库中是否存在该数据库
+		var dbName = strings.ToLower(v.dm[arg].Value)
 		for _, db := range v.dbs {
 			if db.Name == v.dm[arg].Value {
 				v.dpr = int64(uintptr(unsafe.Pointer(db)))
+				v.pfr = int64(uintptr(unsafe.Pointer(v.pfm[dbName])))
 				return nil
 			}
 		}
-		var dbName = strings.ToLower(v.dm[arg].Value)
 		// 如果不存在则尝试从磁盘中读取
 		v.pfm[dbName] = new(cfs.PageFile)
-		var pf = v.pfm[dbName]
-		err := pf.Read(dbName)
+		err := v.pfm[dbName].Read(dbName)
 		if err != nil {
 			return err
 		}
-		page, err := pf.Page(0, true)
+		page, err := v.pfm[dbName].Page(0, true)
 		if err != nil {
 			return err
 		}
-		data, err := page.FindRow(conf.RowTypeDatabase, dbName)
+		data, err := page.FindRowByName(conf.RowTypeDatabase, dbName)
 		if err != nil {
 			return err
 		}
 		var db = utils.ToDatabase(row.NewEmptyMeta().Read(data))
 		v.dbs = append(v.dbs, db)
 		v.dpr = int64(uintptr(unsafe.Pointer(db)))
-		return nil
+		v.pfr = int64(uintptr(unsafe.Pointer(v.pfm[dbName])))
+		break
 	case OpCodeSet:
-		// TODO: 设置字段属性
-		return nil
+		switch object {
+		case OmCodeColumn:
+			var col = (*cds.Column)(unsafe.Pointer(uintptr(v.cpr)))
+			if arg == conf.SetTypeLength {
+				err := col.SetLength(uint8(attr))
+				if err != nil {
+					return err
+				}
+			} else if arg == conf.SetTypeBind {
+				err := col.SetBind(uint8(attr))
+				if err != nil {
+					return err
+				}
+			}
+			break
+		}
+		break
+	}
+	for _, pf := range v.pfm {
+		if err := pf.Flush(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
