@@ -55,7 +55,8 @@ func (s *SqlEngine) PushToken(token Token) {
 	}
 	var value = strings.ToUpper(token.Value)
 	if is, v := conf.IsNumber(value); is {
-		token.OpType = TokenTypeNumber
+		token.Type = TokenTypeNumber
+		token.OpType = OpTypeData
 		token.OpValue = uint16(v)
 		s.tokens.Push(token)
 		return
@@ -76,6 +77,43 @@ func (s *SqlEngine) PushToken(token Token) {
 	} else if slices.Contains(datatypes, value) {
 		opValue = s.vm.dtm[value]
 		opType = OpTypeAttr
+	} else if slices.Contains(constraints, value) {
+		opType = OpTypeBind
+		if value == ctPrimary || value == ctNot {
+			token.Value = value
+			s.tokens.Push(token)
+			return
+		}
+		v, ok := s.tokens.ValueOf(s.tokens.Size() - 1)
+		if ok && v.Value == ctNot && value == ctNull { // 处理 not null
+			_, _ = s.tokens.PopLast()
+			var field *Token
+			field, ok = s.tokens.ValueOf(s.tokens.Size() - 2)
+			if field.Type == TokenTypeIdentifier && ok {
+				field.OpBind |= conf.FieldNotNull
+				return
+			} else {
+				field, ok = s.tokens.ValueOf(s.tokens.Size() - 5)
+				if field.Type == TokenTypeIdentifier && ok {
+					field.OpBind |= conf.FieldNotNull
+					return
+				}
+			}
+		} else if ok && v.Value == ctPrimary && value == ctKey { // 处理 primary key
+			_, _ = s.tokens.PopLast()
+			var field *Token
+			field, ok = s.tokens.ValueOf(s.tokens.Size() - 2)
+			if field.Type == TokenTypeIdentifier && ok {
+				field.OpBind |= conf.FieldPrimaryKey
+				return
+			} else {
+				field, ok = s.tokens.ValueOf(s.tokens.Size() - 3)
+				if field.Type == TokenTypeIdentifier && ok {
+					field.OpBind |= conf.FieldPrimaryKey
+					return
+				}
+			}
+		}
 	} else {
 		opType = OpTypeData
 		opValue = uint16(s.PushData(token.Value))
@@ -152,11 +190,10 @@ func (s *SqlEngine) Compile(trees []*ASTTree) ([]uint64, error) {
 				instructions = append(instructions, NewSqlInc(
 					uint8(tree.Root.OpValue), uint8(tree.Root.Next.OpValue+1), uint8(child.Root.OpValue),
 					child.Root.Next.OpValue))
+				instructions = append(instructions, NewSqlInc(
+					OpCodeSet, OmCodeColumn, conf.SetTypeBind, uint16(child.Root.OpBind)))
 				if len(child.Tokens) > 2 {
 					instructions = append(instructions, NewSqlInc(OpCodeSet, OmCodeColumn, conf.SetTypeLength, child.Root.Next.Next.OpValue))
-					if len(child.Tokens) > 3 {
-						instructions = append(instructions, NewSqlInc(OpCodeSet, OmCodeColumn, conf.SetTypeBind, child.Root.Next.Next.Next.OpValue))
-					}
 				}
 			}
 			break

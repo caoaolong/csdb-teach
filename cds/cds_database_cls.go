@@ -27,5 +27,6 @@ func NewDatabase(pf *cfs.PageFile, name string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	return database, page.Write(pf, meta.Encode(), false)
+	page.WriteMemory(meta.Encode(), false)
+	return database, nil
 }

@@ -19,6 +19,7 @@ type ASTNode struct {
 	Next    *ASTNode
 	OpValue uint16
 	OpType  uint8
+	OpBind  uint8
 }
 
 func NewASTTree(se *SqlEngine, tokens []*Token) *ASTTree {
@@ -34,6 +35,7 @@ func NewASTNode(token *Token) *ASTNode {
 	node.Token = token
 	node.OpValue = token.OpValue
 	node.OpType = token.OpType
+	node.OpBind = token.OpBind
 	return node
 }
 

@@ -8,8 +8,8 @@ var script = `
 create database school;
 use school;
 create table class(
-class_id int,
-class_name varchar(20)
+class_id bigint primary key,
+class_name varchar(20) not null
 );
 `
 

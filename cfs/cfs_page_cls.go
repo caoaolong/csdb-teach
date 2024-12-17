@@ -20,6 +20,7 @@ type Page struct {
 	data     []byte
 	// Non-coded fields
 	entries []int64
+	dirty   bool
 }
 
 func NewEmptyPage(offset int64) *Page {
@@ -38,6 +39,10 @@ func (p *Page) Type() uint8 {
 
 func (p *Page) IsEmpty() bool {
 	return p.data == nil
+}
+
+func (p *Page) IsDirty() bool {
+	return p.dirty
 }
 
 func (p *Page) Attr(pf *PageFile, attr uint8) error {
@@ -59,20 +64,12 @@ func (p *Page) Raw() []byte {
 	return p.data
 }
 
-func (p *Page) Cover(pf *PageFile, offset int64, data []byte) error {
-	_, err := pf.fp.Seek(offset, io.SeekStart)
-	if err != nil {
-		return err
-	}
-	_, err = pf.fp.Write(data)
-	if err != nil {
-		return err
-	}
-	pf.dirty = true
-	return nil
+func (p *Page) Cover(offset int64, data []byte) {
+	copy(p.data[offset:], data)
+	p.dirty = true
 }
 
-func (p *Page) Write(pf *PageFile, data []byte, overlay bool) error {
+func (p *Page) WriteMemory(data []byte, overlay bool) {
 	if p.data == nil {
 		p.data = make([]byte, conf.FilePageSize-conf.PageHeaderSize)
 	}
@@ -81,6 +78,14 @@ func (p *Page) Write(pf *PageFile, data []byte, overlay bool) error {
 	} else {
 		copy(p.data[p.lOffset:], data)
 		p.lOffset += uint32(len(data))
+		p.dirty = true
+	}
+}
+
+func (p *Page) Write(pf *PageFile, data []byte, overlay bool) error {
+	p.WriteMemory(data, overlay)
+	if !p.IsDirty() {
+		return nil
 	}
 	// 定位写入位置
 	_, err := pf.fp.Seek(p.offset, io.SeekStart)
@@ -102,10 +107,14 @@ func (p *Page) Write(pf *PageFile, data []byte, overlay bool) error {
 		return err
 	}
 	pf.dirty = true
+	p.dirty = false
 	return nil
 }
 
 func (p *Page) Read(pf *PageFile, body bool) error {
+	if p.IsDirty() {
+		return nil
+	}
 	var data = make([]byte, conf.FilePageSize)
 	_, err := pf.fp.Seek(p.offset, io.SeekStart)
 	if err != nil {
@@ -181,11 +190,9 @@ func (p *Page) FindRowByName(rowType uint8, value string) ([]byte, error) {
 
 func (p *Page) FindRowByID(rowType uint8, id uint32) ([]byte, int64, error) {
 	var found = false
-	if p.entries == nil {
-		err := p.Scan()
-		if err != nil {
-			return nil, 0, err
-		}
+	err := p.Scan()
+	if err != nil {
+		return nil, 0, err
 	}
 	for _, offset := range p.entries {
 		if conf.RowType(p.data[offset]) == rowType {
@@ -203,8 +210,7 @@ func (p *Page) FindRowByID(rowType uint8, id uint32) ([]byte, int64, error) {
 				}
 			}
 			if found {
-				return p.data[offset : int(offset)+conf.RowHeaderSize+int(p.data[offset+15])],
-					offset + conf.FileHeaderSize + conf.PageHeaderSize, nil
+				return p.data[offset : int(offset)+conf.RowHeaderSize+int(p.data[offset+15])], offset, nil
 			}
 		}
 	}

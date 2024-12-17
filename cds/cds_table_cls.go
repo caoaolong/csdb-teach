@@ -27,5 +27,6 @@ func NewTable(pf *cfs.PageFile, db *Database, name string) (*Table, error) {
 	if err != nil {
 		return nil, err
 	}
-	return table, page.Write(pf, meta.Encode(), false)
+	page.WriteMemory(meta.Encode(), false)
+	return table, nil
 }

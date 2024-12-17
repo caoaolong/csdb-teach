@@ -210,12 +210,20 @@ func (pf *PageFile) Read(filename string) error {
 }
 
 func (pf *PageFile) Flush() error {
+	for _, e := range pf.pages {
+		if e != nil && e.IsDirty() {
+			err := e.Write(pf, e.data, true)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	if pf.dirty {
-		pf.dirty = false
 		err := pf.fp.Sync()
 		if err != nil {
 			return err
 		}
+		pf.dirty = false
 		return pf.freeSize()
 	} else {
 		return nil
@@ -241,9 +249,8 @@ func (pf *PageFile) Page(index int, body bool) (*Page, error) {
 	if index < 0 || index >= int(pf.pageCount) {
 		return nil, errors.New(conf.ErrPageIndex)
 	}
-	var page = pf.pages[index]
-	page.offset = int64(index*conf.FilePageSize) + conf.FileHeaderSize
-	return page, page.Read(pf, body)
+	pf.pages[index].offset = int64(index*conf.FilePageSize) + conf.FileHeaderSize
+	return pf.pages[index], pf.pages[index].Read(pf, body)
 }
 
 func (pf *PageFile) PageByType(pType uint8, dbId uint8) (*Page, error) {

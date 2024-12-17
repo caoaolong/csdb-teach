@@ -35,10 +35,7 @@ func NewColumn(pf *cfs.PageFile, db *Database, tb *Table, name string, mType uin
 		return nil, err
 	}
 	column.page = page
-	err = page.Write(pf, meta.Encode(), false)
-	if err != nil {
-		return nil, err
-	}
+	page.WriteMemory(meta.Encode(), false)
 	return column, nil
 }
 
@@ -48,7 +45,8 @@ func (c *Column) SetLength(value uint8) error {
 		return err
 	}
 	c.meta.Read(data).Length = value
-	return c.page.Cover(c.pf, offset, c.meta.Encode())
+	c.page.Cover(offset, c.meta.Encode())
+	return nil
 }
 
 func (c *Column) SetBind(value uint8) error {
@@ -57,5 +55,6 @@ func (c *Column) SetBind(value uint8) error {
 		return err
 	}
 	c.meta.Read(data).Bind = value
-	return c.page.Cover(c.pf, offset, c.meta.Encode())
+	c.page.Cover(offset, c.meta.Encode())
+	return nil
 }

@@ -79,3 +79,11 @@ const (
 	ColumnTypeMediumText = 0b0000_1000_0000_0000
 	ColumnTypeBlob       = 0b0000_1111_0000_0000
 )
+
+const (
+	FieldNotNull    = 0b00000001
+	FieldPrimaryKey = 0b00000010
+	FieldDefault    = 0b00000100
+	FieldUnique     = 0b00001000
+	FieldComment    = 0b00010000
+)

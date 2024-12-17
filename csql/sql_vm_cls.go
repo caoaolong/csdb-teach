@@ -101,6 +101,11 @@ func (v *SqlVm) run(instructions []uint64) error {
 			return err
 		}
 	}
+	for _, pf := range v.pfm {
+		if err := pf.Flush(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -197,11 +202,6 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8, attr uint16) error {
 			break
 		}
 		break
-	}
-	for _, pf := range v.pfm {
-		if err := pf.Flush(); err != nil {
-			return err
-		}
 	}
 	return nil
 }

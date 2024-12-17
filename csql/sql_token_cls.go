@@ -5,6 +5,7 @@ type Token struct {
 	Type    uint8
 	OpType  uint8
 	OpValue uint16
+	OpBind  uint8
 }
 
 const (
@@ -25,6 +26,7 @@ const (
 	OpTypeObject
 	OpTypeData
 	OpTypeAttr
+	OpTypeBind
 )
 
 const (
@@ -56,6 +58,20 @@ var datatypes = []string{
 	DtBigInt,
 	DtFloat,
 	DtDouble,
+}
+
+const (
+	ctNot     = "NOT"
+	ctNull    = "NULL"
+	ctUnique  = "UNIQUE"
+	ctPrimary = "PRIMARY"
+	ctKey     = "KEY"
+	ctDefault = "DEFAULT"
+	ctComment = "COMMENT"
+)
+
+var constraints = []string{
+	ctNot, ctNull, ctUnique, ctPrimary, ctKey, ctDefault, ctComment,
 }
 
 func NewToken(value string, tType uint8) Token {
