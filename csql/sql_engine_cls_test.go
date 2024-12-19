@@ -5,12 +5,8 @@ import (
 )
 
 var script = `
-create database school;
 use school;
-create table class(
-class_id bigint primary key,
-class_name varchar(20) not null
-);
+insert into class(class_id, class_name) values(1, '高二（1）班');
 `
 
 func TestSqlEngine(t *testing.T) {

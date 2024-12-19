@@ -61,6 +61,12 @@ func (a *ASTTree) Build() (*ASTTree, error) {
 			return nil, errors.New(conf.ErrSyntax)
 		}
 		break
+	case OpCodeInsert:
+		if a.Tokens[1].OpValue == OpCodeInto {
+			return a.buildInsertTableTree()
+		} else {
+			return nil, errors.New(conf.ErrSyntax)
+		}
 	case OpCodeUse:
 		a.Root.Next = NewASTNode(a.Tokens[1])
 		break
@@ -121,4 +127,51 @@ func (a *ASTTree) buildCreateTableTree() (*ASTTree, error) {
 		}
 	}
 	return nil, nil
+}
+
+func (a *ASTTree) buildInsertTableTree() (*ASTTree, error) {
+	// TODO: 构建INSERT AST
+	// 删除INTO（无意义）
+	a.Tokens = append(a.Tokens[:1], a.Tokens[2:]...)
+	r := NewASTTree(a.se, a.Tokens)
+	// 获取表名
+	r.Root.Next = NewASTNode(a.Tokens[1])
+	// 字段名列表
+	var columnIndex = -1
+	var columnCount = 0
+	// 值列表
+	var valueIndex = -1
+	var valueCount = 0
+	if r.Tokens[2].Type == TokenTypeSymbol && r.Tokens[2].Value == "(" {
+		columnIndex = 3
+	} else if r.Tokens[2].Type == TokenTypeKeyword && r.Tokens[2].Value == KwValues {
+		valueIndex = 3
+	}
+	if columnIndex > 0 {
+		var i = columnIndex
+		for ; r.Tokens[i].Value != ")"; i++ {
+			if r.Tokens[i].Value == "," {
+				continue
+			} else {
+				r.Children = append(r.Children, NewASTTree(r.se, []*Token{r.Tokens[i]}))
+				columnCount++
+			}
+		}
+		valueIndex = i + 3
+	}
+	var entryIndex = 0
+	for i := valueIndex; r.Tokens[i].Value != ")"; i++ {
+		if r.Tokens[i].Value == "," {
+			continue
+		} else {
+			valueCount++
+			if len(r.Children) > 0 && len(r.Children) == columnCount {
+				r.Children[entryIndex].Root.Next = NewASTNode(r.Tokens[i])
+				entryIndex++
+			} else {
+				r.Children = append(r.Children, NewASTTree(r.se, []*Token{r.Tokens[i]}))
+			}
+		}
+	}
+	return r, nil
 }

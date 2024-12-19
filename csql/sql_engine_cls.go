@@ -201,6 +201,13 @@ func (s *SqlEngine) Compile(trees []*ASTTree) ([]uint64, error) {
 			instructions = append(instructions, NewSqlInc(
 				uint8(tree.Root.OpValue), 0, uint8(tree.Root.Next.OpValue), 0))
 			break
+		case OpCodeInsert:
+			for _, child := range tree.Children {
+				instructions = append(instructions, NewSqlIncWithVal(
+					uint8(tree.Root.OpValue), OmCodeColumn, uint8(child.Root.OpValue),
+					0, uint8(child.Root.Next.OpValue)))
+			}
+			break
 		}
 	}
 	return instructions, nil

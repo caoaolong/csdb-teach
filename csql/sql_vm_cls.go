@@ -48,6 +48,8 @@ const (
 	OpCodeCreate
 	OpCodeUse
 	OpCodeSet
+	OpCodeInsert
+	OpCodeInto
 )
 
 const (
@@ -62,6 +64,8 @@ func newVm() *SqlVm {
 	vm.dm = make([]OpData, 0)
 	vm.cm = map[string]uint8{
 		KwCreate: OpCodeCreate,
+		KwInsert: OpCodeInsert,
+		KwInto:   OpCodeInto,
 		KwUse:    OpCodeUse,
 	}
 	vm.om = map[string]uint8{
@@ -81,9 +85,15 @@ func newVm() *SqlVm {
 	return vm
 }
 
+func NewSqlIncWithVal(opcode, object, arg uint8, attr uint16, val uint8) uint64 {
+	var inc = NewSqlInc(opcode, object, arg, attr)
+	inc |= uint64(val) << 40
+	return inc
+}
+
 func NewSqlInc(opcode, object, arg uint8, attr uint16) uint64 {
 	var inc uint64 = 0
-	inc |= uint64(attr) << 32
+	inc |= uint64(attr) << 24
 	inc |= uint64(opcode) << 16
 	inc |= uint64(object) << 8
 	inc |= uint64(arg)
@@ -92,11 +102,12 @@ func NewSqlInc(opcode, object, arg uint8, attr uint16) uint64 {
 
 func (v *SqlVm) run(instructions []uint64) error {
 	for _, instruction := range instructions {
-		var attr = uint16(instruction & 0xFF00000000 >> 32)
+		var data = uint8(instruction & 0xFF0000000000 >> 40)
+		var attr = uint16(instruction & 0xFFFF000000 >> 24)
 		var opcode = uint8(instruction & 0xFF0000 >> 16)
 		var object = uint8(instruction & 0xFF00 >> 8)
 		var arg = uint8(instruction & 0xFF)
-		err := v.execInstr(opcode, object, arg, attr)
+		err := v.execInstr(opcode, object, arg, attr, data)
 		if err != nil {
 			return err
 		}
@@ -109,7 +120,7 @@ func (v *SqlVm) run(instructions []uint64) error {
 	return nil
 }
 
-func (v *SqlVm) execInstr(opcode, object, arg uint8, attr uint16) error {
+func (v *SqlVm) execInstr(opcode, object, arg uint8, attr uint16, d uint8) error {
 	switch opcode {
 	case OpCodeCreate:
 		switch object {
@@ -202,6 +213,11 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8, attr uint16) error {
 			break
 		}
 		break
+	case OpCodeInsert:
+		switch object {
+		case OmCodeColumn:
+			// TODO: 插入数据
+		}
 	}
 	return nil
 }

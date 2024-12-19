@@ -31,6 +31,9 @@ const (
 
 const (
 	KwCreate   = "CREATE"
+	KwInsert   = "INSERT"
+	KwInto     = "INTO"
+	KwValues   = "VALUES"
 	KwDatabase = "DATABASE"
 	KwTable    = "TABLE"
 	KwView     = "VIEW"
@@ -38,7 +41,8 @@ const (
 )
 
 var keywords = []string{
-	KwCreate, KwDatabase, KwTable, KwView, KwUse,
+	KwCreate, KwInsert, KwInto, KwValues,
+	KwDatabase, KwTable, KwView, KwUse,
 }
 
 const (
