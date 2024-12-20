@@ -45,19 +45,8 @@ func (p *Page) IsDirty() bool {
 	return p.dirty
 }
 
-func (p *Page) Attr(pf *PageFile, attr uint8) error {
+func (p *Page) Attr(attr uint8) {
 	p.attr |= attr
-	// 定位写入位置
-	_, err := pf.fp.Seek(p.offset, io.SeekStart)
-	if err != nil {
-		return err
-	}
-	_, err = pf.fp.Write([]byte{p.attr})
-	if err != nil {
-		return err
-	}
-	pf.dirty = true
-	return nil
 }
 
 func (p *Page) Raw() []byte {
@@ -218,14 +207,16 @@ func (p *Page) FindRowByID(rowType uint8, id uint32) ([]byte, int64, error) {
 }
 
 func (pf *PageFile) AppendPage(parentId uint16, attr uint8, db uint8) (*Page, error) {
-	err := pf.checkAppend()
-	if err != nil {
-		return nil, err
+	if pf.last+1 == pf.pageCount {
+		err := pf.checkAppend()
+		if err != nil {
+			return nil, err
+		}
 	}
 	// 初始化 Page
 	var page = NewEmptyPage(conf.FileHeaderSize + int64(parentId)*int64(conf.FilePageSize))
-	pf.pages[pf.pageCount] = page
-	pf.pageCount++
+	pf.pages[pf.last] = page
+	pf.last++
 	page.ownerId = pf.pageCount
 	if parentId > 0 {
 		page.parentId = parentId
@@ -238,7 +229,7 @@ func (pf *PageFile) AppendPage(parentId uint16, attr uint8, db uint8) (*Page, er
 	page.dbId = db
 	page.lOffset = 0
 	// 写入 Page
-	err = page.Write(pf, []byte{}, true)
+	err := page.Write(pf, []byte{}, true)
 	if err != nil {
 		return page, err
 	}

@@ -23,6 +23,7 @@ type PageFile struct {
 	fp           *os.File
 	fi           os.FileInfo
 	pageCount    uint16
+	last         uint16
 	pages        []*Page
 	dirty        bool
 	maxPageCount int
@@ -31,12 +32,6 @@ type PageFile struct {
 
 func (pf *PageFile) IsDirty() bool {
 	return pf.dirty
-}
-
-func NewPageFile() *PageFile {
-	var pf = new(PageFile)
-
-	return pf
 }
 
 func (pf *PageFile) freeSize() error {

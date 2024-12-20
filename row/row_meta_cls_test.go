@@ -15,7 +15,7 @@ func TestWriteMetaRow(t *testing.T) {
 	}
 	page, err := pf.Page(1, true)
 	// 创建一个Meta行
-	meta, err := NewMetaRow(conf.RowTypeDatabase, 0, 1, 0, 0, "mysql")
+	meta, err := NewMetaRow(conf.RowTypeDatabase, 0, 1, 0, 0, 0, "mysql")
 	if err != nil {
 		t.Fatal(err)
 	}
