@@ -87,3 +87,11 @@ const (
 	FieldUnique     = 0b00001000
 	FieldComment    = 0b00010000
 )
+
+const (
+	DvNumber = 0b00100000
+	DvString = 0b01000000
+	DvRef    = 0b10000000
+	DvFloat  = 0b01100000
+	LenMask  = 0b00011111
+)

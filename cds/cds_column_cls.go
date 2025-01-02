@@ -25,7 +25,7 @@ func NewColumn(pf *cfs.PageFile, db *Database, tb *Table, name string, mType uin
 		return nil, err
 	}
 	column.ID = uint32(colId)
-	meta, err := row.NewMetaRow(conf.RowTypeColumn, column.Attr, db.ID, tb.id, uint32(colId), mType, column.Name)
+	meta, err := row.NewMetaRow(conf.RowTypeColumn, column.Attr, db.ID, tb.ID, uint32(colId), mType, column.Name)
 	if err != nil {
 		return nil, err
 	}

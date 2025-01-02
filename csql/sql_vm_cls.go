@@ -37,10 +37,14 @@ type SqlVm struct {
 	cpr int64
 	// page file register
 	pfr int64
+	// row pointer register
+	rpr int64
 
 	/********* attributes **********/
 	// databases
 	dbs []*cds.Database
+	// values
+	values []*row.DataValue
 }
 
 const (
@@ -49,6 +53,8 @@ const (
 	OpCodeUse
 	OpCodeSet
 	OpCodeInsert
+	OpCodeInsertBegin
+	OpCodeInsertEnd
 	OpCodeInto
 )
 
@@ -62,6 +68,7 @@ const (
 func newVm() *SqlVm {
 	var vm = new(SqlVm)
 	vm.dm = make([]OpData, 0)
+	vm.values = make([]*row.DataValue, 0)
 	vm.cm = map[string]uint8{
 		KwCreate: OpCodeCreate,
 		KwInsert: OpCodeInsert,
@@ -213,10 +220,58 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8, attr uint16, d uint8) error
 			break
 		}
 		break
+	case OpCodeInsertBegin:
+		var db = (*cds.Database)(unsafe.Pointer(uintptr(v.dpr)))
+		var tb = (*cds.Table)(unsafe.Pointer(uintptr(v.tpr)))
+		if tb == nil {
+			page, err := v.pfm[strings.ToLower(db.Name)].Page(0, true)
+			if err != nil {
+				return err
+			}
+			data, err := page.FindRowByName(conf.RowTypeTable, v.dm[arg].Value)
+			if err != nil {
+				return err
+			}
+			tb = utils.ToTable(row.NewEmptyMeta().Read(data))
+			v.tpr = int64(uintptr(unsafe.Pointer(tb)))
+		}
+		rowId, err := conf.IDW.Value()
+		if err != nil {
+			return err
+		}
+		r := row.NewDataRow(db.ID, tb.ID, 0, rowId, nil)
+		v.rpr = int64(uintptr(unsafe.Pointer(r)))
+		break
+	case OpCodeInsertEnd:
+		var pf = (*cfs.PageFile)(unsafe.Pointer(uintptr(v.pfr)))
+		var db = (*cds.Database)(unsafe.Pointer(uintptr(v.dpr)))
+		var r = (*row.Data)(unsafe.Pointer(uintptr(v.rpr)))
+		var data = make([]byte, 0)
+		for _, e := range v.values {
+			data = append(data, row.DataValueBytes(e)...)
+		}
+		r.SetValue(data, uint8(len(v.values)))
+		v.values = make([]*row.DataValue, 0)
+		page, err := pf.PageByType(conf.PageTypeData, db.ID)
+		if err != nil {
+			return err
+		}
+		page.WriteMemory(r.Encode(), false)
+		break
 	case OpCodeInsert:
 		switch object {
 		case OmCodeColumn:
-			// TODO: 插入数据
+			var dv any
+			if attr&conf.DvNumber == conf.DvNumber {
+				dv = int64(d)
+			} else if attr&conf.DvString == conf.DvString {
+				dv = []byte(v.dm[d].Value)
+			}
+			rv, err := row.NewDataValue(uint8(attr), dv)
+			if err != nil {
+				return err
+			}
+			v.values = append(v.values, rv)
 		}
 	}
 	return nil

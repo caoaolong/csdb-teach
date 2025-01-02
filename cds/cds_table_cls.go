@@ -7,19 +7,19 @@ import (
 )
 
 type Table struct {
-	id   uint32
-	name string
+	ID   uint32
+	Name string
 }
 
 func NewTable(pf *cfs.PageFile, db *Database, name string) (*Table, error) {
 	var table = new(Table)
-	table.name = name
+	table.Name = name
 	tbId, err := conf.IDW.Table()
 	if err != nil {
 		return nil, err
 	}
-	table.id = tbId
-	meta, err := row.NewMetaRow(conf.RowTypeTable, 0, db.ID, tbId, 0, 0, table.name)
+	table.ID = tbId
+	meta, err := row.NewMetaRow(conf.RowTypeTable, 0, db.ID, tbId, 0, 0, table.Name)
 	if err != nil {
 		return nil, err
 	}

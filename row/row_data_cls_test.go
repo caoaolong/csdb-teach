@@ -40,7 +40,7 @@ func TestReadDataRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	page, err := pf.Page(2, true)
+	page, err := pf.Page(0, true)
 	fmt.Println(NewEmptyData().Decode(page, 0).String())
 	err = pf.Close()
 	if err != nil {

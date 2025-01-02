@@ -2,6 +2,7 @@ package row
 
 import (
 	"bytes"
+	"csdb-teach/conf"
 	"encoding/binary"
 )
 
@@ -10,17 +11,10 @@ type DataValue struct {
 	Value []byte
 }
 
-const (
-	DvNumber = 0b00100000
-	DvString = 0b01000000
-	DvRef    = 0b10000000
-	DvFloat  = 0b01100000
-)
-
 func NewDataValue(attr uint8, data any) (*DataValue, error) {
 	var dv = new(DataValue)
 	dv.Attr = attr
-	if attr&DvNumber == DvNumber {
+	if attr&conf.DvNumber == conf.DvNumber {
 		dv.Attr |= 8
 		dv.Value = make([]byte, 8)
 		buf := new(bytes.Buffer)
@@ -29,17 +23,17 @@ func NewDataValue(attr uint8, data any) (*DataValue, error) {
 			return nil, err
 		}
 		copy(dv.Value, buf.Bytes())
-	} else if attr&DvString == DvString {
+	} else if attr&conf.DvString == conf.DvString {
 		var length = uint8(len(data.([]byte)))
 		if length <= 31 {
 			dv.Attr |= length
 			dv.Value = make([]byte, length)
 			copy(dv.Value, data.([]byte))
 		} else {
-			dv.Attr = DvRef | 8
+			dv.Attr = conf.DvRef | 8
 			// TODO: 存储字符串
 		}
-	} else if attr&DvFloat == DvFloat {
+	} else if attr&conf.DvFloat == conf.DvFloat {
 		dv.Attr |= 8
 		dv.Value = make([]byte, 8)
 		buf := new(bytes.Buffer)

@@ -133,11 +133,23 @@ func (s *SqlEngine) Entries() [][]*Token {
 
 func (s *SqlEngine) ParseToken(script string) {
 	var value strings.Builder
-	for _, char := range script {
+	var strValue = false
+	for idx, char := range script {
 		switch char {
 		case ' ', '\t', '\n', '\r':
 			s.PushToken(NewToken(value.String(), TokenTypeIdentifier))
 			value.Reset()
+			break
+		case '\'':
+			if script[idx-1] != '\\' {
+				if strValue {
+					s.PushToken(NewToken(value.String(), TokenTypeString))
+					value.Reset()
+					strValue = false
+				} else {
+					strValue = true
+				}
+			}
 			break
 		case ';':
 			s.PushToken(NewToken(value.String(), TokenTypeIdentifier))
@@ -202,11 +214,20 @@ func (s *SqlEngine) Compile(trees []*ASTTree) ([]uint64, error) {
 				uint8(tree.Root.OpValue), 0, uint8(tree.Root.Next.OpValue), 0))
 			break
 		case OpCodeInsert:
+			instructions = append(instructions, NewSqlInc(OpCodeInsertBegin, OmCodeTable, uint8(tree.Root.Next.OpValue), 0))
 			for _, child := range tree.Children {
+				var attr uint16 = 0
+				var v = child.Root.Next
+				if v.Token.Type == TokenTypeNumber {
+					attr = conf.DvNumber
+				} else if v.Token.Type == TokenTypeString {
+					attr = conf.DvString
+				}
 				instructions = append(instructions, NewSqlIncWithVal(
 					uint8(tree.Root.OpValue), OmCodeColumn, uint8(child.Root.OpValue),
-					0, uint8(child.Root.Next.OpValue)))
+					attr, uint8(child.Root.Next.OpValue)))
 			}
+			instructions = append(instructions, NewSqlInc(OpCodeInsertEnd, 0, 0, 0))
 			break
 		}
 	}

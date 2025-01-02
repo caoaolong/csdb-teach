@@ -12,6 +12,13 @@ func ToDatabase(m *row.Meta) *cds.Database {
 	return db
 }
 
+func ToTable(m *row.Meta) *cds.Table {
+	var tb = new(cds.Table)
+	tb.ID = m.TbId
+	tb.Name = m.String()
+	return tb
+}
+
 func ToColumn(m *row.Meta) *cds.Column {
 	var col = new(cds.Column)
 	col.ID = m.ColId

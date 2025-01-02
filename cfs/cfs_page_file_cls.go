@@ -188,6 +188,7 @@ func (pf *PageFile) Read(filename string) error {
 	if strings.Compare(string(header[:len(conf.FileHeaderMagic)]), conf.FileHeaderMagic) != 0 {
 		return errors.New(conf.ErrFileFormat)
 	}
+	pf.pageCount = uint16((pf.fi.Size() - conf.FileHeaderSize) / int64(conf.FilePageSize))
 	for index := int64(conf.FileHeaderSize); index < pf.fi.Size(); index += int64(conf.FilePageSize) {
 		// 读取数据
 		var page = NewEmptyPage(index)
@@ -196,7 +197,6 @@ func (pf *PageFile) Read(filename string) error {
 			return err
 		}
 		pf.pages[index/int64(conf.FilePageSize)] = page
-		pf.pageCount++
 		if !page.IsExists() {
 			break
 		}
