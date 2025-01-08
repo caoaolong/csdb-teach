@@ -261,6 +261,19 @@ func (v *SqlVm) execInstr(opcode, object, arg uint8, attr uint16, d uint8) error
 	case OpCodeInsert:
 		switch object {
 		case OmCodeColumn:
+			var db = (*cds.Database)(unsafe.Pointer(uintptr(v.dpr)))
+			page, err := v.pfm[strings.ToLower(db.Name)].Page(0, true)
+			if err != nil {
+				return err
+			}
+			data, err := page.FindRowByName(conf.RowTypeColumn, v.dm[arg].Value)
+			if err != nil {
+				return err
+			}
+			var column = utils.ToColumn(row.NewEmptyMeta().Read(data))
+			if column.IsPrimaryKey() {
+				// TODO: 处理主键
+			}
 			var dv any
 			if attr&conf.DvNumber == conf.DvNumber {
 				dv = int64(d)

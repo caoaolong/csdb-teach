@@ -14,6 +14,7 @@ const (
 	FileHeaderSize = 16
 	PageHeaderSize = 16
 	RowHeaderSize  = 16
+	IndexRowSize   = RowHeaderSize * 2
 
 	FileHeaderMagic = "CS.DB"
 )

@@ -23,5 +23,6 @@ func ToColumn(m *row.Meta) *cds.Column {
 	var col = new(cds.Column)
 	col.ID = m.ColId
 	col.Name = m.String()
+	col.Meta = m
 	return col
 }

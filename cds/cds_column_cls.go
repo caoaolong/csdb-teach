@@ -13,7 +13,11 @@ type Column struct {
 
 	pf   *cfs.PageFile
 	page *cfs.Page
-	meta *row.Meta
+	Meta *row.Meta
+}
+
+func (c *Column) IsPrimaryKey() bool {
+	return c.Meta.Bind&conf.FieldPrimaryKey > 0
 }
 
 func NewColumn(pf *cfs.PageFile, db *Database, tb *Table, name string, mType uint16) (*Column, error) {
@@ -29,7 +33,7 @@ func NewColumn(pf *cfs.PageFile, db *Database, tb *Table, name string, mType uin
 	if err != nil {
 		return nil, err
 	}
-	column.meta = meta
+	column.Meta = meta
 	page, err := pf.PageByType(conf.PageTypeMeta, db.ID)
 	if err != nil {
 		return nil, err
@@ -44,8 +48,8 @@ func (c *Column) SetLength(value uint8) error {
 	if err != nil {
 		return err
 	}
-	c.meta.Read(data).Length = value
-	c.page.Cover(offset, c.meta.Encode())
+	c.Meta.Read(data).Length = value
+	c.page.Cover(offset, c.Meta.Encode())
 	return nil
 }
 
@@ -54,7 +58,7 @@ func (c *Column) SetBind(value uint8) error {
 	if err != nil {
 		return err
 	}
-	c.meta.Read(data).Bind = value
-	c.page.Cover(offset, c.meta.Encode())
+	c.Meta.Read(data).Bind = value
+	c.page.Cover(offset, c.Meta.Encode())
 	return nil
 }

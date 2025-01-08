@@ -130,7 +130,6 @@ func (a *ASTTree) buildCreateTableTree() (*ASTTree, error) {
 }
 
 func (a *ASTTree) buildInsertTableTree() (*ASTTree, error) {
-	// TODO: 构建INSERT AST
 	// 删除INTO（无意义）
 	a.Tokens = append(a.Tokens[:1], a.Tokens[2:]...)
 	r := NewASTTree(a.se, a.Tokens)
