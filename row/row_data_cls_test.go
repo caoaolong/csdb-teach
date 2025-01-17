@@ -2,6 +2,7 @@ package row
 
 import (
 	"csdb-teach/cfs"
+	"csdb-teach/conf"
 	"fmt"
 	"testing"
 )
@@ -16,8 +17,8 @@ func TestWriteDataRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	classId, _ := NewDataValue(DvNumber, int64(1))
-	className, _ := NewDataValue(DvString, []byte("高三（2）班"))
+	classId, _ := NewDataValue(conf.DvNumber, int64(1))
+	className, _ := NewDataValue(conf.DvString, []byte("高三（2）班"))
 	var dataBytes = make([]byte, 0)
 	dataBytes = append(dataBytes, DataValueBytes(classId)...)
 	dataBytes = append(dataBytes, DataValueBytes(className)...)

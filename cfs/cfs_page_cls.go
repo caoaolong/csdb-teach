@@ -10,15 +10,15 @@ import (
 
 type Page struct {
 	// Coded fields
-	offset   int64
 	attr     uint8
 	parentId uint16
 	ownerId  uint16
 	dbId     uint8
-	lOffset  uint32
-	unused   [6]byte
+	lOffset  uint16
+	unused   [8]byte
 	data     []byte
 	// Non-coded fields
+	offset  int64
 	entries []int64
 	dirty   bool
 }
@@ -49,8 +49,20 @@ func (p *Page) Attr(attr uint8) {
 	p.attr |= attr
 }
 
+func (p *Page) DBId(dbId uint8) {
+	p.dbId = dbId
+}
+
 func (p *Page) Raw() []byte {
 	return p.data
+}
+
+func (p *Page) Offset() uint16 {
+	return p.lOffset
+}
+
+func (p *Page) Index() uint16 {
+	return uint16((p.offset - int64(conf.FileHeaderSize)) / int64(conf.FilePageSize))
 }
 
 func (p *Page) Cover(offset int64, data []byte) {
@@ -66,7 +78,7 @@ func (p *Page) WriteMemory(data []byte, overlay bool) {
 		copy(p.data, data)
 	} else {
 		copy(p.data[p.lOffset:], data)
-		p.lOffset += uint32(len(data))
+		p.lOffset += uint16(len(data))
 		p.dirty = true
 	}
 }
@@ -86,7 +98,7 @@ func (p *Page) Write(pf *PageFile, data []byte, overlay bool) error {
 	binary.BigEndian.PutUint16(header[1:3], p.parentId)
 	binary.BigEndian.PutUint16(header[3:5], p.ownerId)
 	header[5] = p.dbId
-	binary.BigEndian.PutUint32(header[6:10], p.lOffset)
+	binary.BigEndian.PutUint16(header[6:8], p.lOffset)
 	_, err = pf.fp.Write(header)
 	if err != nil {
 		return err
@@ -117,7 +129,7 @@ func (p *Page) Read(pf *PageFile, body bool) error {
 	p.parentId = binary.BigEndian.Uint16(data[1:3])
 	p.ownerId = binary.BigEndian.Uint16(data[3:5])
 	p.dbId = data[5]
-	p.lOffset = binary.BigEndian.Uint32(data[6:10])
+	p.lOffset = binary.BigEndian.Uint16(data[6:8])
 	if body {
 		p.data = make([]byte, conf.FilePageSize-conf.PageHeaderSize)
 		copy(p.data, data[conf.PageHeaderSize:])
@@ -129,14 +141,11 @@ func (p *Page) Read(pf *PageFile, body bool) error {
 	return nil
 }
 
-func (p *Page) Clear(pf *PageFile) error {
-	_, err := pf.fp.Seek(int64(conf.FileHeaderSize)+int64(+conf.FilePageSize)*int64(p.ownerId-1), io.SeekStart)
-	if err != nil {
-		return err
+func (p *Page) Clear() {
+	for i := 0; i < len(p.data); i++ {
+		p.data[i] = 0
 	}
-	var data = make([]byte, conf.FilePageSize-conf.FileHeaderSize)
-	_, err = pf.fp.Write(data)
-	return err
+	p.lOffset = 0
 }
 
 func (p *Page) Scan() error {
@@ -235,8 +244,4 @@ func (pf *PageFile) AppendPage(parentId uint16, attr uint8, db uint8) (*Page, er
 	}
 	pf.dirty = true
 	return page, nil
-}
-
-func (pf *PageFile) ClearPage(index uint16) error {
-	return pf.pages[index].Clear(pf)
 }

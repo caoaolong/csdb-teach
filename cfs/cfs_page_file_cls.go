@@ -258,13 +258,18 @@ func (pf *PageFile) PageByType(pType uint8, dbId uint8) (*Page, error) {
 				return nil, err
 			}
 		}
-		if pf.pages[i].Type() == 0 {
-			pf.pages[i].attr |= pType
-			pf.pages[i].dbId = dbId
-			return pf.Page(i, false)
+		page := pf.pages[i]
+		if page.Type() == 0 {
+			err = page.Read(pf, true)
+			if err != nil {
+				return nil, err
+			}
+			page.Attr(pType)
+			page.DBId(dbId)
+			return page, nil
 		}
 		if pf.pages[i].Type() == pType {
-			return pf.Page(i, true)
+			return page, page.Read(pf, true)
 		}
 	}
 	return pf.AppendPage(pf.pageCount, pType, dbId)
