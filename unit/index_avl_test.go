@@ -1,6 +1,10 @@
 package unit
 
 import (
+	"csdb-teach/cfs"
+	"csdb-teach/conf"
+	"csdb-teach/idx"
+	"csdb-teach/row"
 	"fmt"
 	"testing"
 )
@@ -146,4 +150,39 @@ func Test(t *testing.T) {
 	}
 	// 打印树的中序遍历
 	inOrder(tree.Root) // 10 20 25 30 40 50
+}
+
+func TestCreateIndex(t *testing.T) {
+	var pf = new(cfs.PageFile)
+	err := pf.Read("test1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := pf.PageByType(conf.PageTypeIndex, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexList := make([]*row.Index, 0)
+	data := page.Raw()
+	for i := 0; ; i += conf.IndexRowSize {
+		entry := row.NewEmptyIndex().Read(data[i : i+conf.IndexRowSize])
+		indexList = append(indexList, entry)
+		if entry.Attr == 0 {
+			break
+		}
+	}
+	page.Clear()
+	nums := []uint64{10, 20, 30, 40, 50, 25}
+	tree := idx.NewAVLTree()
+	for _, n := range nums {
+		indexList = append(indexList, row.NewIndex(page.Index(), page.Offset(), n))
+	}
+	for _, e := range indexList {
+		tree.Insert(e)
+	}
+	tree.Write(page)
+	err = pf.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
