@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "db_file.h": "c",
+        "sl_list.h": "c",
+        "db.h": "c",
+        "dirent.h": "c",
+        "str.h": "c",
+        "log.h": "c",
+        "error.h": "c",
+        "stdio.h": "c",
+        "errno.h": "c",
+        "db_file_page.h": "c",
+        "stdlib.h": "c"
+    },
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/src/inc",
+        "/usr/include",
+        "/usr/local/include"
+    ]
+}
