@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "csdb/db.h"
 #include "db_file_page.h"
 #include "ds/sl_list.h"
@@ -23,9 +24,9 @@ void db_file_page_create(db_file_t *db_file, uint32_t page)
         perror("Failed to allocate memory for db_file_page");
         return;
     }
-    db_file_page->db_file = db_file;
+    db_file_page->fd = dup(fileno(db_file->fp));
     db_file_page_header_build(db_file_page, page);
-    db_file_page_write(db_file_page, &db_file_page->header, sizeof(db_file_page_header_t));
+    db_file_page_write_header(db_file_page);
 
     // Add the page to the file's page list
     sl_node *node = sl_node_create((int64_t)db_file_page);
@@ -38,14 +39,13 @@ int db_file_page_load(db_file_t *db_file, uint32_t count)
     for (uint32_t i = 0; i < count; i++)
     {
         db_file_page_t *db_file_page = (db_file_page_t *)malloc(sizeof(db_file_page_t));
-        db_file_page->db_file = db_file;
+        db_file_page->fd = fileno(db_file->fp);
         if (!db_file_page)
         {
             perror("Failed to allocate memory for db_file_page");
             return -1;
         }
-        db_file_page_read(db_file_page, &db_file_page->header, sizeof(db_file_page_header_t));
-
+        db_file_page_read_header(db_file_page, i);
 
         // Add the page to the file's page list
         sl_node *node = sl_node_create((int64_t)db_file_page);
@@ -56,14 +56,64 @@ int db_file_page_load(db_file_t *db_file, uint32_t count)
     return total;
 }
 
-int db_file_page_write(db_file_page_t *page, const void *data, size_t size)
+int db_file_page_write_header(db_file_page_t *page)
 {
-    fseek(page->db_file->fp, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE, SEEK_SET);
-    return fwrite(data, size, 1, page->db_file->fp);
+    size_t size = sizeof(db_file_page_header_t);
+    lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE, SEEK_SET);
+    int r = write(page->fd, &page->header, size);
+    if (r != size)
+    {
+        perror("Failed to write page header");
+        return -1;
+    } else {
+        page->dirty = true; // Mark the page as dirty after writing
+        return r;
+    }
 }
 
-int db_file_page_read(db_file_page_t *page, void *data, size_t size)
+int db_file_page_read_header(db_file_page_t *page, uint32_t index)
 {
-    fseek(page->db_file->fp, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE, SEEK_SET);
-    return fread(data, size, 1, page->db_file->fp);
+    lseek(page->fd, index * CSDB_DB_FILE_PAGE_SIZE, SEEK_SET);
+    return read(page->fd, &page->header, sizeof(db_file_page_header_t));
+}
+
+int db_file_page_read_data(db_file_page_t *page)
+{
+    size_t size = CSDB_DB_FILE_PAGE_SIZE - sizeof(db_file_page_header_t);
+    char *data = malloc(size);
+    if (!data)
+    {
+        perror("Failed to allocate memory for page data");
+        return -1;
+    }
+    lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE, SEEK_SET);
+    if (read(page->fd, data, size) != 1)
+    {
+        free(data);
+        perror("Failed to read page data");
+        return -1;
+    }
+    // 加载数据
+    page->data = array_load(data, size, CSDB_DB_FILE_PAGE_SIZE);
+    return 0;
+}
+
+int db_file_page_write_data(db_file_page_t *page, const void *data, size_t size)
+{
+    lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE + sizeof(db_file_page_header_t), SEEK_SET);
+    int r = write(page->fd, data, size);
+    if (r != size)
+    {
+        perror("Failed to write page header");
+        return -1;
+    } else {
+        page->dirty = true; // Mark the page as dirty after writing
+        return r;
+    }
+}
+
+void db_file_page_commit(db_file_page_t *page)
+{
+    fsync(page->fd); // Ensure all data is written to disk
+    page->dirty = false; // Mark the page as clean after committing
 }
