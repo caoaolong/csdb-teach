@@ -36,3 +36,12 @@ data_block_t *data_block_create(char *data, size_t *remaining)
     memcpy(block->data, data, wsz);
     return block;
 }
+
+data_block_prepare_t *data_block_prepare() 
+{
+    data_block_prepare_t *block = (data_block_prepare_t *)malloc(sizeof(data_block_prepare_t));
+    block->page = block->size = 0;
+    block->data = NULL;
+    sem_init(&block->sem, 0, 0);
+    return block;
+}

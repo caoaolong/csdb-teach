@@ -13,6 +13,13 @@ typedef struct data_block_s {
     char data[DATA_BLOCK_SIZE]; // 数据块
 } data_block_t;
 
+struct data_block_prepare_s {
+    sem_t sem; // 信号量
+    uint32_t page; // 起始页号
+    size_t size; // 实际读取长度
+    char *data; // 数据
+};
+
 typedef struct data_block_list_s {
     sem_t sem; // 信号量
     size_t bc; // 数据块数量
@@ -24,5 +31,7 @@ data_block_list_t *data_block_list_create();
 void data_block_list_destroy(data_block_list_t *db_list);
 
 data_block_t *data_block_create(char *data, size_t *remaining);
+
+data_block_prepare_t *data_block_prepare();
 
 #endif // CSDB_DB_FILE_BLOCK_H

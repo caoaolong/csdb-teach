@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "db_file.h"
-#include "ds/array.h"
 
 enum {
     DB_FILE_USED = 0b00000001, // 页已使用
@@ -33,7 +32,7 @@ struct db_file_page_s {
     // 文件页头信息
     db_file_page_header_t header;
     // 数据
-    array *data;
+    char *data;
 };
 
 void db_file_page_create(db_file_t *db_file, uint32_t page);

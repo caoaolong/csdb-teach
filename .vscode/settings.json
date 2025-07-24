@@ -11,7 +11,8 @@
         "errno.h": "c",
         "db_file_page.h": "c",
         "stdlib.h": "c",
-        "array.h": "c"
+        "array.h": "c",
+        "db_file_block.h": "c"
     },
     "C_Cpp.default.includePath": [
         "${workspaceFolder}/src/inc",

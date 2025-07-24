@@ -79,23 +79,25 @@ int db_file_page_read_header(db_file_page_t *page, uint32_t index)
 
 int db_file_page_read_data(db_file_page_t *page)
 {
-    size_t size = CSDB_DB_FILE_PAGE_SIZE - sizeof(db_file_page_header_t);
-    char *data = malloc(size);
-    if (!data)
+    if (page->data) {
+        return page->header.size;
+    }
+
+    size_t size = page->header.size;
+    page->data = (char *)malloc(size);
+    if (!page->data)
     {
         perror("Failed to allocate memory for page data");
         return -1;
     }
-    lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE, SEEK_SET);
-    if (read(page->fd, data, size) != 1)
+    lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE + sizeof(db_file_page_header_t), SEEK_SET);
+    if (read(page->fd, page->data, size) < 0)
     {
-        free(data);
+        free(page->data);
         perror("Failed to read page data");
         return -1;
     }
-    // 加载数据
-    page->data = array_load(data, size, CSDB_DB_FILE_PAGE_SIZE);
-    return 0;
+    return size;
 }
 
 int db_file_page_write_data(db_file_page_t *page, const void *data, size_t size)

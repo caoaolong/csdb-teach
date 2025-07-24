@@ -42,6 +42,40 @@ static void db_file_create_threads(db_file_t *db_file, sl_list *list, int count,
 static void *db_file_read_thread(void *args)
 {
     db_file_t *db_file = (db_file_t *)args;
+    sl_list *pages = db_file->pages;
+    while (true)
+    {
+        sem_wait(&db_file->rsem);
+        pthread_mutex_lock(&db_file->rlock);
+        data_block_prepare_t *block = (data_block_prepare_t *)array_remove_front(db_file->rbuf);
+        pthread_mutex_unlock(&db_file->rlock);
+        sl_node *node = pages->head;
+        // 计算数据大小
+        size_t size = 0;
+        db_file_page_t *page = db_file_page(db_file, block->page);
+        while (page && page->header.flags & DB_FILE_USED)
+        {
+            size += page->header.size;
+            // 读取下一页
+            page = db_file_page(db_file, page->header.next);
+        }
+        // 读取数据
+        block->data = malloc(size);
+        page = db_file_page(db_file, block->page);
+        while (page && page->header.flags & DB_FILE_USED)
+        {
+            int pgsz = db_file_page_read_data(page);
+            if (pgsz < 0)
+            {
+                log_error("load data from page %d failed\n", page->header.page);
+            }
+            memcpy(block->data + block->size, page->data, pgsz);
+            block->size += pgsz;
+            // 读取下一页
+            page = db_file_page(db_file, page->header.next);
+        }
+        sem_post(&block->sem);
+    }
 }
 
 static void *db_file_write_thread(void *args)
@@ -81,7 +115,8 @@ static void *db_file_write_thread(void *args)
             page->header.size = block->size;
             page->header.flags |= DB_FILE_USED; // 标记为已使用
             // 设置数据页链表
-            if (last_page) {
+            if (last_page)
+            {
                 last_page->header.next = page->header.page;
                 db_file_page_write_header(last_page);
             }
@@ -209,9 +244,27 @@ db_file_t *db_file_open(const char *dbname)
     }
 }
 
-char *db_file_read(db_file_t *db_file)
+data_block_prepare_t *db_file_read(db_file_t *db_file, uint32_t page)
 {
-    return NULL;
+    if (page < 1 || page > db_file->pages->size) {
+        log_error("page index %d out of range[%d, %d]", page, 1, db_file->pages->size);
+        return NULL;
+    }
+
+    data_block_prepare_t *block = data_block_prepare();
+    block->page = page;
+    // 提交任务
+    pthread_mutex_lock(&db_file->rlock);
+    array_insert_back(db_file->rbuf, (int64_t)block);
+    pthread_mutex_unlock(&db_file->rlock);
+    sem_post(&db_file->rsem);
+    log_info("commit read task from page %d\n", page);
+    // 等待任务执行完毕
+    clock_t begin = clock();
+    sem_wait(&block->sem);
+    clock_t end = clock();
+    log_info("read task completed in %f seconds\n", (double)(end - begin) / CLOCKS_PER_SEC);
+    return block;
 }
 
 void db_file_write(db_file_t *db_file, char *data, size_t size, bool commit)
@@ -283,6 +336,20 @@ db_file_page_t *db_file_alloc_page(db_file_t *db_file)
         sl_node *node = (sl_node *)sl_list_get(db_file->pages, i);
         db_file_page_t *page = (db_file_page_t *)node->data;
         if (!page->dirty && !(page->header.flags & DB_FILE_USED))
+        {
+            return page;
+        }
+    }
+    return NULL;
+}
+
+db_file_page_t *db_file_page(db_file_t *db_file, int index)
+{
+    for (int i = 0; i < db_file->pages->size; i++)
+    {
+        sl_node *node = (sl_node *)sl_list_get(db_file->pages, i);
+        db_file_page_t *page = (db_file_page_t *)node->data;
+        if (index == page->header.page)
         {
             return page;
         }
