@@ -106,7 +106,7 @@ static void *db_file_write_thread(void *args)
                 continue;
             }
             // 写入数据块到文件
-            db_file_page_t *page = db_file_alloc_page(db_file);
+            db_file_page_t *page = db_file_alloc_page(db_file, DB_FILE_DATA);
             if (!page)
             {
                 log_error("No available page to write data block\n");
@@ -114,11 +114,14 @@ static void *db_file_write_thread(void *args)
             }
             page->header.size = block->size;
             page->header.flags |= DB_FILE_USED; // 标记为已使用
-            // 设置数据页链表
             if (last_page)
             {
+                // 非第一次写入，设置数据页链表
                 last_page->header.next = page->header.page;
                 db_file_page_write_header(last_page);
+            } else {
+                // 第一次写入，更新schema
+                list->schema->start_page = page->header.page;
             }
             db_file_page_write_header(page);
             db_file_page_write_data(page, block->data, block->size);
@@ -223,6 +226,8 @@ int db_file_create(const char *dbname)
         db_file_page_create(db_file, i + 1);
     }
     fflush(db_file->fp);
+    // 插入数据库文件链表
+    sl_list_insert_back(db_list, sl_node_create((uint64_t) db_file));
     return 0;
 }
 
@@ -244,34 +249,41 @@ db_file_t *db_file_open(const char *dbname)
     }
 }
 
-data_block_prepare_t *db_file_read(db_file_t *db_file, uint32_t page)
+data_block_prepare_t *db_file_read(db_file_t *db_file, const char *name)
 {
-    if (page < 1 || page > db_file->pages->size) {
-        log_error("page index %d out of range[%d, %d]", page, 1, db_file->pages->size);
+    db_file_page_t *schema_page = malloc(sizeof(db_file_page_t *));
+    uint16_t offset = 0;
+    if (db_file_find(db_file, name, &schema_page, &offset) < 0)
+    {
+        log_error("row %s not found\n", name);
         return NULL;
     }
-
+    db_schema_row_t *schema = (db_schema_row_t *)schema_page->data + offset;
     data_block_prepare_t *block = data_block_prepare();
-    block->page = page;
+    block->page = schema->start_page;
     // 提交任务
     pthread_mutex_lock(&db_file->rlock);
     array_insert_back(db_file->rbuf, (int64_t)block);
     pthread_mutex_unlock(&db_file->rlock);
     sem_post(&db_file->rsem);
-    log_info("commit read task from page %d\n", page);
+    log_info("commit read task from page %d\n", schema->start_page);
     // 等待任务执行完毕
     clock_t begin = clock();
     sem_wait(&block->sem);
     clock_t end = clock();
     log_info("read task completed in %f seconds\n", (double)(end - begin) / CLOCKS_PER_SEC);
+    free(schema_page);
     return block;
 }
 
-void db_file_write(db_file_t *db_file, char *data, size_t size, bool commit)
+void db_file_write(db_file_t *db_file, const char *filename, char *data, size_t size, bool commit)
 {
+    // 创建文件结构数据
+    db_file_page_t *page = db_file_alloc_page(db_file, DB_FILE_SCHEMA);
+    db_schema_row_t *row = db_schema_row_create(filename, DB_FILE_SCHEMA, page->header.page);
     // 文件分块
     size_t remaining = size;
-    data_block_list_t *list = data_block_list_create();
+    data_block_list_t *list = data_block_list_create(row);
     do
     {
         data_block_t *block = data_block_create(data, &remaining);
@@ -287,6 +299,11 @@ void db_file_write(db_file_t *db_file, char *data, size_t size, bool commit)
     // 等待任务执行完毕
     clock_t begin = clock();
     sem_wait(&list->sem);
+    // 更新结构数据
+    if (db_file_page_write_row(page, row) < 0)
+    {
+        log_error("write the schema of %s failed\n", filename);
+    }
     // 销毁数据块列表
     data_block_list_destroy(list);
     // 提交数据
@@ -329,14 +346,30 @@ void db_file_commit(db_file_t *db_file)
     }
 }
 
-db_file_page_t *db_file_alloc_page(db_file_t *db_file)
+db_file_page_t *db_file_alloc_page(db_file_t *db_file, uint8_t type)
 {
     for (int i = 0; i < db_file->pages->size; i++)
     {
         sl_node *node = (sl_node *)sl_list_get(db_file->pages, i);
         db_file_page_t *page = (db_file_page_t *)node->data;
-        if (!page->dirty && !(page->header.flags & DB_FILE_USED))
+        // 已经使用的结构页
+        if (page->header.flags & type)
         {
+            int row_count = page->header.size / CSDB_DB_PAGE_ROW_SIZE;
+            if (row_count < CSDB_DB_PAGE_ROW_COUNT)
+            {
+                page->header.flags |= (DB_FILE_USED | type);
+                return page;
+            }
+            else
+            {
+                continue;
+            }
+        }
+        // 一个新的结构页
+        if (!(page->header.flags & DB_FILE_USED))
+        {
+            page->header.flags = (DB_FILE_USED | type);
             return page;
         }
     }
@@ -355,4 +388,29 @@ db_file_page_t *db_file_page(db_file_t *db_file, int index)
         }
     }
     return NULL;
+}
+
+int db_file_find(db_file_t *db_file, const char *name, db_file_page_t **pg, uint16_t *off)
+{
+    for (int i = 0; i < db_file->pages->size; i++)
+    {
+        sl_node *node = (sl_node *)sl_list_get(db_file->pages, i);
+        db_file_page_t *page = (db_file_page_t *)node->data;
+
+        if (!(page->header.flags & DB_FILE_USED))
+            continue;
+
+        if (page->header.flags & DB_FILE_SCHEMA)
+        {
+            int offset = db_file_page_find(page, name);
+            if (offset < 0)
+            {
+                continue;
+            }
+            *pg = page;
+            *off = offset;
+            return 0;
+        }
+    }
+    return -1;
 }

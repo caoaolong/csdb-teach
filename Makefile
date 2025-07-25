@@ -10,7 +10,7 @@ $(BUILD)/%.o: $(SRC)/%.c
 
 .PHONY: all clean
 
-all: $(BUILD)/db_file.o $(BUILD)/db_file_page.o $(BUILD)/db_file_block.o \
+all: $(BUILD)/db_file.o $(BUILD)/db_file_page.o $(BUILD)/db_file_block.o $(BUILD)/db_row.o \
 	$(BUILD)/ds/sl_list.o \
 	$(BUILD)/ds/array.o \
 	$(BUILD)/lib/str.o $(BUILD)/lib/log.o \

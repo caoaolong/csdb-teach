@@ -4,9 +4,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "db_file.h"
+#include "db_row.h"
 
 enum {
-    DB_FILE_USED = 0b00000001, // 页已使用
+    DB_FILE_USED    = 0b00000001, // 页已使用
+    DB_FILE_DATA    = 0b00000010, // 数据页
+    DB_FILE_SCHEMA  = 0b00000100, // 结构页
 };
 
 typedef struct db_file_page_header_s {
@@ -47,6 +50,12 @@ int db_file_page_read_data(db_file_page_t *page);
 
 int db_file_page_write_data(db_file_page_t *page, const void *data, size_t size);
 
+char *db_file_page_read_row(db_file_page_t *page, int index);
+
+int db_file_page_write_row(db_file_page_t *page, const void *data);
+
 void db_file_page_commit(db_file_page_t *page);
+
+int db_file_page_find(db_file_page_t *page, const char *name);
 
 #endif // CSDB_DB_FILE_PAGE_H

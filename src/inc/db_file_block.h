@@ -5,6 +5,7 @@
 #include "csdb/db.h"
 #include "db_file_page.h"
 #include "ds/sl_list.h"
+#include "db_row.h"
 
 #define DATA_BLOCK_SIZE  (CSDB_DB_FILE_PAGE_SIZE - sizeof(db_file_page_header_t))
 
@@ -22,11 +23,12 @@ struct data_block_prepare_s {
 
 typedef struct data_block_list_s {
     sem_t sem; // 信号量
+    db_schema_row_t *schema; // 结构指针
     size_t bc; // 数据块数量
     sl_list *list; // 数据块列表
 } data_block_list_t;
 
-data_block_list_t *data_block_list_create();
+data_block_list_t *data_block_list_create(db_schema_row_t *schema);
 
 void data_block_list_destroy(data_block_list_t *db_list);
 

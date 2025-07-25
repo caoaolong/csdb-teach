@@ -37,12 +37,14 @@ void db_file_load();
 
 int db_file_create(const char *filename);
 db_file_t *db_file_open(const char *dbname);
-data_block_prepare_t *db_file_read(db_file_t *db_file, uint32_t page);
-void db_file_write(db_file_t *db_file, char *data, size_t size, bool commit);
+data_block_prepare_t *db_file_read(db_file_t *db_file, const char *name);
+void db_file_write(db_file_t *db_file, const char *filename, char *data, size_t size, bool commit);
 void db_file_close(db_file_t *db_file);
 void db_file_commit(db_file_t *db_file);
 
-db_file_page_t *db_file_alloc_page(db_file_t *db_file);
+db_file_page_t *db_file_alloc_page(db_file_t *db_file, uint8_t type);
 db_file_page_t *db_file_page(db_file_t *db_file, int index);
+
+int db_file_find(db_file_t *db_file, const char *name, db_file_page_t **page, uint16_t *offset);
 
 #endif // CSDB_DB_FILE_H

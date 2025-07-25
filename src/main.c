@@ -24,11 +24,11 @@ int main(int argc, char *argv[])
     // char *data = malloc(size);
     // fread(data, 1, size, file);
     // fclose(file);
-    // db_file_write(db_file, data, size, true);
+    // db_file_write(db_file, "lcf", data, size, true);
 
     // 读取数据
     db_file_t *db_file = db_file_open("test");
-    data_block_prepare_t *block = db_file_read(db_file, 1);
+    data_block_prepare_t *block = db_file_read(db_file, "lcf");
     if (block)
     {
         FILE *file = fopen("./lcf", "w+");

@@ -77,6 +77,19 @@ int db_file_page_read_header(db_file_page_t *page, uint32_t index)
     return read(page->fd, &page->header, sizeof(db_file_page_header_t));
 }
 
+char *db_file_page_read_row(db_file_page_t *page, int index)
+{
+    int offset = page->header.size + sizeof(db_file_page_header_t) + index * CSDB_DB_PAGE_ROW_SIZE;
+    char *data = malloc(CSDB_DB_PAGE_ROW_SIZE);
+    if (page->data) {
+        memcpy(data, page->data + offset, CSDB_DB_PAGE_ROW_SIZE);
+        return data;
+    }
+    lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE + offset, SEEK_SET);
+    read(page->fd, data, CSDB_DB_PAGE_ROW_SIZE);
+    return data;
+}
+
 int db_file_page_read_data(db_file_page_t *page)
 {
     if (page->data) {
@@ -100,6 +113,22 @@ int db_file_page_read_data(db_file_page_t *page)
     return size;
 }
 
+int db_file_page_write_row(db_file_page_t *page, const void *data)
+{
+    // 写入数据
+    int offset = page->header.size + sizeof(db_file_page_header_t);
+    lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE + offset, SEEK_SET);
+    int nbytes = write(page->fd, data, CSDB_DB_PAGE_ROW_SIZE);
+    if (nbytes < CSDB_DB_PAGE_ROW_SIZE) {
+        perror("write page row failed");
+        return -1;
+    }
+    // 更新头部数据
+    page->header.size += CSDB_DB_PAGE_ROW_SIZE;
+    lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE, SEEK_SET);
+    return write(page->fd, &page->header, sizeof(db_file_page_header_t));
+}
+
 int db_file_page_write_data(db_file_page_t *page, const void *data, size_t size)
 {
     lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE + sizeof(db_file_page_header_t), SEEK_SET);
@@ -118,4 +147,20 @@ void db_file_page_commit(db_file_page_t *page)
 {
     fsync(page->fd); // Ensure all data is written to disk
     page->dirty = false; // Mark the page as clean after committing
+}
+
+int db_file_page_find(db_file_page_t *page, const char *name)
+{
+    // 读取本页数据
+    db_file_page_read_data(page);
+    // 查询
+    int offset = 0;
+    while (offset < page->header.size) {
+        char *row_name = page->data + offset;
+        if (!strcmp(row_name, name)) {
+            return offset;
+        }
+        offset += CSDB_DB_PAGE_ROW_SIZE;
+    }
+    return 0;
 }

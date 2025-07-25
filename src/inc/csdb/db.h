@@ -11,5 +11,9 @@
 #define CSDB_DB_FILE_SIZE       0x10000
 // 数据库文件页大小
 #define CSDB_DB_FILE_PAGE_SIZE  0x1000
+// 数据行大小(102bytes)
+#define CSDB_DB_PAGE_ROW_SIZE   0x66
+// 每页最大行数
+#define CSDB_DB_PAGE_ROW_COUNT  40
 
 #endif // CSDB_DB_H
