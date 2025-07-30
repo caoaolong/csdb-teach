@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "db_file_block.h"
 
-data_block_list_t *data_block_list_create(db_schema_row_t *schema)
+data_block_list_t *data_block_list_create()
 {
     data_block_list_t *list = (data_block_list_t *)malloc(sizeof(data_block_list_t));
     if (!list) {
@@ -13,7 +13,6 @@ data_block_list_t *data_block_list_create(db_schema_row_t *schema)
     sem_init(&list->sem, 0, 0);
     list->bc = 0;
     list->list = sl_list_create();
-    list->schema = schema;
     return list;
 }
 

@@ -6,6 +6,7 @@
 #include "csdb/db.h"
 #include "lib/str.h"
 #include "lib/log.h"
+#include "lib/code.h"
 #include "db_file.h"
 #include "db_file_page.h"
 #include "db_file_block.h"
@@ -106,22 +107,26 @@ static void *db_file_write_thread(void *args)
                 continue;
             }
             // 写入数据块到文件
-            db_file_page_t *page = db_file_alloc_page(db_file, DB_FILE_DATA);
+            db_file_page_t *page = db_file_alloc_page(db_file, DB_FILE_DATA, CSDB_DB_PAGE_ROW_SIZE);
             if (!page)
             {
                 log_error("No available page to write data block\n");
                 continue;
             }
-            page->header.size = block->size;
+            uint16_t offset = page->header.size;
+            page->header.size += block->size;
             page->header.flags |= DB_FILE_USED; // 标记为已使用
             if (last_page)
             {
                 // 非第一次写入，设置数据页链表
                 last_page->header.next = page->header.page;
                 db_file_page_write_header(last_page);
-            } else {
-                // 第一次写入，更新schema
-                list->schema->start_page = page->header.page;
+            }
+            else
+            {
+                // 第一次写入，更新ref
+                list->ref.page = page->header.page;
+                list->ref.offset = offset;
             }
             db_file_page_write_header(page);
             db_file_page_write_data(page, block->data, block->size);
@@ -227,7 +232,7 @@ int db_file_create(const char *dbname)
     }
     fflush(db_file->fp);
     // 插入数据库文件链表
-    sl_list_insert_back(db_list, sl_node_create((uint64_t) db_file));
+    sl_list_insert_back(db_list, sl_node_create((uint64_t)db_file));
     return 0;
 }
 
@@ -276,14 +281,30 @@ data_block_prepare_t *db_file_read(db_file_t *db_file, const char *name)
     return block;
 }
 
-void db_file_write(db_file_t *db_file, const char *filename, char *data, size_t size, bool commit)
+void db_file_write_schema(db_file_t *db_file, db_schema_row_t *schema)
 {
-    // 创建文件结构数据
-    db_file_page_t *page = db_file_alloc_page(db_file, DB_FILE_SCHEMA);
-    db_schema_row_t *row = db_schema_row_create(filename, DB_FILE_SCHEMA, page->header.page);
+    db_file_page_t *page = db_file_alloc_page(db_file, DB_FILE_SCHEMA, CSDB_DB_PAGE_ROW_SIZE);
+    db_file_page_t *data = db_file_alloc_page(db_file, DB_FILE_DATA, CSDB_DB_PAGE_ROW_SIZE);
+    if (schema->comment != 0)
+    {
+        size_t cml = strlen((char *)schema->comment) + 1;
+        db_file_page_t *value = db_file_alloc_page(db_file, DB_FILE_VALUE, cml);
+        data_ref_t ref;
+        db_file_write(db_file, &ref, (char *)schema->comment, cml, false);
+        schema->comment = ref_encode(&ref);
+    }
+    if (db_file_page_write_row(page, schema) < 0)
+    {
+        log_error("write the schema of %s failed\n", schema->name);
+    }
+    db_file_commit(db_file);
+}
+
+void db_file_write(db_file_t *db_file, data_ref_t *ref, char *data, size_t size, bool commit)
+{
     // 文件分块
     size_t remaining = size;
-    data_block_list_t *list = data_block_list_create(row);
+    data_block_list_t *list = data_block_list_create();
     do
     {
         data_block_t *block = data_block_create(data, &remaining);
@@ -299,11 +320,9 @@ void db_file_write(db_file_t *db_file, const char *filename, char *data, size_t 
     // 等待任务执行完毕
     clock_t begin = clock();
     sem_wait(&list->sem);
-    // 更新结构数据
-    if (db_file_page_write_row(page, row) < 0)
-    {
-        log_error("write the schema of %s failed\n", filename);
-    }
+    // 更新写入位置
+    ref->page = list->ref.page;
+    ref->offset = list->ref.offset;
     // 销毁数据块列表
     data_block_list_destroy(list);
     // 提交数据
@@ -346,17 +365,15 @@ void db_file_commit(db_file_t *db_file)
     }
 }
 
-db_file_page_t *db_file_alloc_page(db_file_t *db_file, uint8_t type)
+db_file_page_t *db_file_alloc_page(db_file_t *db_file, uint8_t type, uint32_t size)
 {
     for (int i = 0; i < db_file->pages->size; i++)
     {
         sl_node *node = (sl_node *)sl_list_get(db_file->pages, i);
         db_file_page_t *page = (db_file_page_t *)node->data;
-        // 已经使用的结构页
         if (page->header.flags & type)
         {
-            int row_count = page->header.size / CSDB_DB_PAGE_ROW_SIZE;
-            if (row_count < CSDB_DB_PAGE_ROW_COUNT)
+            if (CSDB_DB_FILE_PAGE_SIZE - page->header.size >= size)
             {
                 page->header.flags |= (DB_FILE_USED | type);
                 return page;

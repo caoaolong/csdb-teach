@@ -10,6 +10,7 @@ enum {
     DB_FILE_USED    = 0b00000001, // 页已使用
     DB_FILE_DATA    = 0b00000010, // 数据页
     DB_FILE_SCHEMA  = 0b00000100, // 结构页
+    DB_FILE_VALUE   = 0b00001000, // 字符串值页
 };
 
 typedef struct db_file_page_header_s {

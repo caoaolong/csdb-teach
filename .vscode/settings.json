@@ -14,7 +14,8 @@
         "array.h": "c",
         "db_file_block.h": "c",
         "compare": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "code.h": "c"
     },
     "C_Cpp.default.includePath": [
         "${workspaceFolder}/src/inc",
