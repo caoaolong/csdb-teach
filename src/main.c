@@ -18,7 +18,16 @@ int main(int argc, char *argv[])
 
     // 创建表
     db_file_t *db_file = db_file_open("test");
-    db_schema_row_t *schema = db_schema_new("user", "this is user table comment!", ROW_TABLE);
-    db_file_write_schema(db_file, schema);
+    db_schema_row_t *user = db_schema_new("user", "this is user table comment!", ROW_TABLE);
+    db_file_write_schema(db_file, user, false);
+    
+    db_schema_row_t *id = db_schema_new("id", "user id", ROW_COLUMN);
+    db_file_write_schema(db_file, id, false);
+    db_schema_link(user, id);
+
+    db_schema_row_t *name = db_schema_new("name", "user name", ROW_COLUMN);
+    db_file_write_schema(db_file, name, false);
+    db_schema_link(name, id);
+
     return 0;
 }

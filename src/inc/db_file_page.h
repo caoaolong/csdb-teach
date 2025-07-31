@@ -53,7 +53,7 @@ int db_file_page_write_data(db_file_page_t *page, const void *data, size_t size)
 
 char *db_file_page_read_row(db_file_page_t *page, int index);
 
-int db_file_page_write_row(db_file_page_t *page, const void *data);
+int db_file_page_write_row(db_file_page_t *page, const void *data, uint16_t size);
 
 void db_file_page_commit(db_file_page_t *page);
 

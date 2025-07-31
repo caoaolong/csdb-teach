@@ -97,7 +97,7 @@ static void *db_file_write_thread(void *args)
         }
 
         db_file_page_t *last_page = NULL;
-        for (int i = 0; i < list->bc; i++)
+        for (int i = 0; i < list->list->size; i++)
         {
             sl_node *node = (sl_node *)sl_list_remove_front(list->list);
             data_block_t *block = (data_block_t *)node->data;
@@ -107,29 +107,24 @@ static void *db_file_write_thread(void *args)
                 continue;
             }
             // 写入数据块到文件
-            db_file_page_t *page = db_file_alloc_page(db_file, DB_FILE_DATA, CSDB_DB_PAGE_ROW_SIZE);
+            db_file_page_t *page = db_file_alloc_page(db_file, block->type, CSDB_DB_PAGE_ROW_SIZE);
             if (!page)
             {
                 log_error("No available page to write data block\n");
                 continue;
             }
-            uint16_t offset = page->header.size;
-            page->header.size += block->size;
-            page->header.flags |= DB_FILE_USED; // 标记为已使用
             if (last_page)
             {
                 // 非第一次写入，设置数据页链表
                 last_page->header.next = page->header.page;
-                db_file_page_write_header(last_page);
             }
             else
             {
                 // 第一次写入，更新ref
                 list->ref.page = page->header.page;
-                list->ref.offset = offset;
+                list->ref.offset = page->header.size;
             }
-            db_file_page_write_header(page);
-            db_file_page_write_data(page, block->data, block->size);
+            db_file_page_write_row(page, block->data, block->size);
             last_page = page;
         }
         sem_post(&list->sem);
@@ -281,36 +276,27 @@ data_block_prepare_t *db_file_read(db_file_t *db_file, const char *name)
     return block;
 }
 
-void db_file_write_schema(db_file_t *db_file, db_schema_row_t *schema)
+void db_file_write_schema(db_file_t *db_file, db_schema_row_t *schema, bool commit)
 {
-    db_file_page_t *page = db_file_alloc_page(db_file, DB_FILE_SCHEMA, CSDB_DB_PAGE_ROW_SIZE);
-    db_file_page_t *data = db_file_alloc_page(db_file, DB_FILE_DATA, CSDB_DB_PAGE_ROW_SIZE);
-    if (schema->comment != 0)
+    data_ref_t ref;
+    db_file_write(db_file, &ref, (char *)schema, sizeof(db_schema_row_t), DB_FILE_SCHEMA, commit);
+    schema->self = ref_encode(&ref);
+    if (schema->comment == 0)
     {
-        size_t cml = strlen((char *)schema->comment) + 1;
-        db_file_page_t *value = db_file_alloc_page(db_file, DB_FILE_VALUE, cml);
-        data_ref_t ref;
-        db_file_write(db_file, &ref, (char *)schema->comment, cml, false);
-        schema->comment = ref_encode(&ref);
+        db_file_commit(db_file);
+        return;
     }
-    if (db_file_page_write_row(page, schema) < 0)
-    {
-        log_error("write the schema of %s failed\n", schema->name);
-    }
-    db_file_commit(db_file);
+    char *comment = (char *)schema->comment;
+    db_file_write(db_file, &ref, comment, strlen(comment) + 1, DB_FILE_VALUE, commit);
+    schema->comment = ref_encode(&ref);
 }
 
-void db_file_write(db_file_t *db_file, data_ref_t *ref, char *data, size_t size, bool commit)
+void db_file_write(db_file_t *db_file, data_ref_t *ref, char *data, size_t size, uint16_t type, bool commit)
 {
     // 文件分块
     size_t remaining = size;
     data_block_list_t *list = data_block_list_create();
-    do
-    {
-        data_block_t *block = data_block_create(data, &remaining);
-        sl_list_insert_back(list->list, sl_node_create((int64_t)block));
-        list->bc++;
-    } while (remaining > 0);
+    data_block_create(list, data, size, type);
     // 提交写任务
     log_info("commit write task with %d blocks\n", list->list->size);
     pthread_mutex_lock(&db_file->wlock);

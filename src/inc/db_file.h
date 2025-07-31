@@ -40,8 +40,8 @@ void db_file_load();
 int db_file_create(const char *filename);
 db_file_t *db_file_open(const char *dbname);
 data_block_prepare_t *db_file_read(db_file_t *db_file, const char *name);
-void db_file_write_schema(db_file_t *db_file, db_schema_row_t *schema);
-void db_file_write(db_file_t *db_file, data_ref_t *ref, char *data, size_t size, bool commit);
+void db_file_write_schema(db_file_t *db_file, db_schema_row_t *schema, bool commit);
+void db_file_write(db_file_t *db_file, data_ref_t *ref, char *data, size_t size, uint16_t type, bool commit);
 void db_file_close(db_file_t *db_file);
 void db_file_commit(db_file_t *db_file);
 

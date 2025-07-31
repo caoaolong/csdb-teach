@@ -113,18 +113,18 @@ int db_file_page_read_data(db_file_page_t *page)
     return size;
 }
 
-int db_file_page_write_row(db_file_page_t *page, const void *data)
+int db_file_page_write_row(db_file_page_t *page, const void *data, uint16_t size)
 {
     // 写入数据
     int offset = page->header.size + sizeof(db_file_page_header_t);
     lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE + offset, SEEK_SET);
-    int nbytes = write(page->fd, data, CSDB_DB_PAGE_ROW_SIZE);
-    if (nbytes < CSDB_DB_PAGE_ROW_SIZE) {
+    int nbytes = write(page->fd, data, size);
+    if (nbytes < size) {
         perror("write page row failed");
         return -1;
     }
     // 更新头部数据
-    page->header.size += CSDB_DB_PAGE_ROW_SIZE;
+    page->header.size += size;
     lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE, SEEK_SET);
     return write(page->fd, &page->header, sizeof(db_file_page_header_t));
 }
