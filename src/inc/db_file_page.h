@@ -57,6 +57,6 @@ int db_file_page_write_row(db_file_page_t *page, const void *data, uint16_t size
 
 void db_file_page_commit(db_file_page_t *page);
 
-int db_file_page_find(db_file_page_t *page, const char *name);
+int db_file_page_find(db_file_page_t *page, const char *name, uint16_t data_type);
 
 #endif // CSDB_DB_FILE_PAGE_H

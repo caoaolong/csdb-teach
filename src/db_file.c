@@ -40,6 +40,16 @@ static void db_file_create_threads(db_file_t *db_file, sl_list *list, int count,
     }
 }
 
+static char *read_value(db_file_t *db_file, data_ref_t *ref)
+{
+    db_file_page_t *page = db_file_page(db_file, ref->page);
+    if (!page->data)
+    {
+        db_file_page_read_data(page);
+    }
+    return page->data + ref->offset;
+}
+
 static void *db_file_read_thread(void *args)
 {
     db_file_t *db_file = (db_file_t *)args;
@@ -50,30 +60,25 @@ static void *db_file_read_thread(void *args)
         pthread_mutex_lock(&db_file->rlock);
         data_block_prepare_t *block = (data_block_prepare_t *)array_remove_front(db_file->rbuf);
         pthread_mutex_unlock(&db_file->rlock);
-        sl_node *node = pages->head;
-        // 计算数据大小
-        size_t size = 0;
-        db_file_page_t *page = db_file_page(db_file, block->page);
-        while (page && page->header.flags & DB_FILE_USED)
+        // 查找所在页和偏移量
+        data_ref_t ref;
+        db_file_page_t *page = db_file_find(db_file, block->name, block->type, &ref);
+        if (!page)
         {
-            size += page->header.size;
-            // 读取下一页
-            page = db_file_page(db_file, page->header.next);
+            log_error("row %s not found\n", block->name);
+            free(page);
+            return NULL;
         }
-        // 读取数据
-        block->data = malloc(size);
-        page = db_file_page(db_file, block->page);
-        while (page && page->header.flags & DB_FILE_USED)
+        db_schema_row_t *schema = (db_schema_row_t *)page->data + ref.offset;
+        block->schema = schema;
+        block->size = sizeof(db_schema_row_t);
+        // 读取注释
+        if (schema->comment > 0)
         {
-            int pgsz = db_file_page_read_data(page);
-            if (pgsz < 0)
-            {
-                log_error("load data from page %d failed\n", page->header.page);
-            }
-            memcpy(block->data + block->size, page->data, pgsz);
-            block->size += pgsz;
-            // 读取下一页
-            page = db_file_page(db_file, page->header.next);
+            ref_decode(schema->comment, &ref);
+            db_file_page_t *page = db_file_page(db_file, ref.page);
+            // 读取数据
+            schema->comment = (uint64_t)read_value(db_file, &ref);
         }
         sem_post(&block->sem);
     }
@@ -123,6 +128,12 @@ static void *db_file_write_thread(void *args)
                 // 第一次写入，更新ref
                 list->ref.page = page->header.page;
                 list->ref.offset = page->header.size;
+            }
+            if (block->type == ROW_TABLE || block->type == ROW_COLUMN)
+            {
+                db_schema_row_t *schema = (db_schema_row_t *)block->data;
+                data_ref_t ref = {.page = page->header.page, .offset = page->header.size};
+                schema->self = ref_encode(&ref);
             }
             db_file_page_write_row(page, block->data, block->size);
             last_page = page;
@@ -249,38 +260,29 @@ db_file_t *db_file_open(const char *dbname)
     }
 }
 
-data_block_prepare_t *db_file_read(db_file_t *db_file, const char *name)
+data_block_prepare_t *db_file_read(db_file_t *db_file, const char *name, uint16_t data_type)
 {
-    db_file_page_t *schema_page = malloc(sizeof(db_file_page_t *));
-    uint16_t offset = 0;
-    if (db_file_find(db_file, name, &schema_page, &offset) < 0)
-    {
-        log_error("row %s not found\n", name);
-        return NULL;
-    }
-    db_schema_row_t *schema = (db_schema_row_t *)schema_page->data + offset;
     data_block_prepare_t *block = data_block_prepare();
-    block->page = schema->start_page;
+    strcpy(block->name, name);
+    block->type = data_type;
     // 提交任务
     pthread_mutex_lock(&db_file->rlock);
     array_insert_back(db_file->rbuf, (int64_t)block);
     pthread_mutex_unlock(&db_file->rlock);
     sem_post(&db_file->rsem);
-    log_info("commit read task from page %d\n", schema->start_page);
+    log_info("commit read task for %s\n", name);
     // 等待任务执行完毕
     clock_t begin = clock();
     sem_wait(&block->sem);
     clock_t end = clock();
     log_info("read task completed in %f seconds\n", (double)(end - begin) / CLOCKS_PER_SEC);
-    free(schema_page);
     return block;
 }
 
 void db_file_write_schema(db_file_t *db_file, db_schema_row_t *schema, bool commit)
 {
     data_ref_t ref;
-    db_file_write(db_file, &ref, (char *)schema, sizeof(db_schema_row_t), DB_FILE_SCHEMA, commit);
-    schema->self = ref_encode(&ref);
+    // 写入注释
     if (schema->comment == 0)
     {
         db_file_commit(db_file);
@@ -289,6 +291,7 @@ void db_file_write_schema(db_file_t *db_file, db_schema_row_t *schema, bool comm
     char *comment = (char *)schema->comment;
     db_file_write(db_file, &ref, comment, strlen(comment) + 1, DB_FILE_VALUE, commit);
     schema->comment = ref_encode(&ref);
+    db_file_write(db_file, &ref, (char *)schema, sizeof(db_schema_row_t), DB_FILE_SCHEMA, commit);
 }
 
 void db_file_write(db_file_t *db_file, data_ref_t *ref, char *data, size_t size, uint16_t type, bool commit)
@@ -393,7 +396,7 @@ db_file_page_t *db_file_page(db_file_t *db_file, int index)
     return NULL;
 }
 
-int db_file_find(db_file_t *db_file, const char *name, db_file_page_t **pg, uint16_t *off)
+db_file_page_t *db_file_find(db_file_t *db_file, const char *name, uint16_t data_type, data_ref_t *ref)
 {
     for (int i = 0; i < db_file->pages->size; i++)
     {
@@ -405,15 +408,15 @@ int db_file_find(db_file_t *db_file, const char *name, db_file_page_t **pg, uint
 
         if (page->header.flags & DB_FILE_SCHEMA)
         {
-            int offset = db_file_page_find(page, name);
+            int offset = db_file_page_find(page, name, data_type);
             if (offset < 0)
             {
                 continue;
             }
-            *pg = page;
-            *off = offset;
-            return 0;
+            ref->page = page->header.page;
+            ref->offset = offset;
+            return page;
         }
     }
-    return -1;
+    return NULL;
 }

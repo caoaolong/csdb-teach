@@ -18,9 +18,14 @@ typedef struct data_block_s
 struct data_block_prepare_s
 {
     sem_t sem;     // 信号量
-    uint32_t page; // 起始页号
-    size_t size;   // 实际读取长度
-    char *data;    // 数据
+    char name[64]; // 索引名称
+    uint16_t type; // 数据类型
+
+    // 返回数据
+
+    db_schema_row_t *schema; // 结构数据
+    char *comment;           // 注释数据
+    size_t size;             // 实际读取长度
 };
 
 struct data_ref_s

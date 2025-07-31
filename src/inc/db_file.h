@@ -7,11 +7,11 @@
 #include <semaphore.h>
 #include "ds/sl_list.h"
 #include "ds/array.h"
-#include "db_row.h"
 
 typedef struct db_file_page_s db_file_page_t;
 typedef struct data_block_prepare_s data_block_prepare_t;
 typedef struct data_ref_s data_ref_t;
+typedef struct db_schema_row_s db_schema_row_t;
 
 typedef struct db_file_s {
     // 数据库文件路径
@@ -39,7 +39,7 @@ void db_file_load();
 
 int db_file_create(const char *filename);
 db_file_t *db_file_open(const char *dbname);
-data_block_prepare_t *db_file_read(db_file_t *db_file, const char *name);
+data_block_prepare_t *db_file_read(db_file_t *db_file, const char *name, uint16_t data_type);
 void db_file_write_schema(db_file_t *db_file, db_schema_row_t *schema, bool commit);
 void db_file_write(db_file_t *db_file, data_ref_t *ref, char *data, size_t size, uint16_t type, bool commit);
 void db_file_close(db_file_t *db_file);
@@ -48,6 +48,6 @@ void db_file_commit(db_file_t *db_file);
 db_file_page_t *db_file_alloc_page(db_file_t *db_file, uint8_t type, uint32_t size);
 db_file_page_t *db_file_page(db_file_t *db_file, int index);
 
-int db_file_find(db_file_t *db_file, const char *name, db_file_page_t **page, uint16_t *offset);
+db_file_page_t *db_file_find(db_file_t *db_file, const char *name, uint16_t data_type, data_ref_t *ref);
 
 #endif // CSDB_DB_FILE_H

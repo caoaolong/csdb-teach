@@ -149,18 +149,18 @@ void db_file_page_commit(db_file_page_t *page)
     page->dirty = false; // Mark the page as clean after committing
 }
 
-int db_file_page_find(db_file_page_t *page, const char *name)
+int db_file_page_find(db_file_page_t *page, const char *name, uint16_t data_type)
 {
     // 读取本页数据
     db_file_page_read_data(page);
     // 查询
     int offset = 0;
     while (offset < page->header.size) {
-        char *row_name = page->data + offset;
-        if (!strcmp(row_name, name)) {
+        db_schema_row_t *row = (db_schema_row_t *)page->data + offset;
+        if (!strcmp(row->name, name) && row->data_type == data_type) {
             return offset;
         }
         offset += CSDB_DB_PAGE_ROW_SIZE;
     }
-    return 0;
+    return -1;
 }

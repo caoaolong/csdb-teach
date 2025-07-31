@@ -45,8 +45,9 @@ void data_block_create(data_block_list_t *list, char *data, size_t size, uint16_
 data_block_prepare_t *data_block_prepare()
 {
     data_block_prepare_t *block = (data_block_prepare_t *)malloc(sizeof(data_block_prepare_t));
-    block->page = block->size = 0;
-    block->data = NULL;
+    block->size = 0;
+    block->comment = NULL;
+    block->schema = NULL;
     sem_init(&block->sem, 0, 0);
     return block;
 }
