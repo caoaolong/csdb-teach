@@ -305,16 +305,15 @@ data_block_prepare_t *db_file_read(db_file_t *db_file, const void *name, uint32_
 void db_file_write_schema(db_file_t *db_file, db_schema_row_t *schema, bool commit)
 {
     data_ref_t ref;
+    // 写入注释
+    if (schema->comment > 0)
+    {
+        char *comment = (char *)schema->comment;
+        db_file_write(db_file, &ref, comment, strlen(comment) + 1, DB_FILE_VALUE, commit);
+        schema->comment = ref_encode(&ref);
+    }
     db_file_write(db_file, &ref, (char *)schema, sizeof(db_schema_row_t), DB_FILE_SCHEMA, commit);
     schema->self = ref_encode(&ref);
-
-    // 写入注释
-    if (schema->comment == 0)
-        return;
-
-    char *comment = (char *)schema->comment;
-    db_file_write(db_file, &ref, comment, strlen(comment) + 1, DB_FILE_VALUE, commit);
-    schema->comment = ref_encode(&ref);
 }
 
 void db_file_link_schema(db_file_t *db_file, db_schema_row_t *schema, bool commit)
