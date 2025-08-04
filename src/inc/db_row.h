@@ -24,7 +24,9 @@ struct __attribute__((packed)) db_schema_row_s {
 
 db_schema_row_t *db_schema_new(const char *name, const char *comment, uint16_t data_type);
 
-db_schema_row_t *db_schema_load_schema(db_file_t *db_file, const char *name, uint16_t data_type);
+db_schema_row_t *db_schema_load_table(db_file_t *db_file, const char *name);
+
+db_schema_row_t *db_schema_load_column(db_file_t *db_file, uint32_t page, uint16_t offset);
 
 void db_schema_link(db_schema_row_t *self, db_schema_row_t *next);
 

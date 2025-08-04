@@ -14,9 +14,15 @@ db_schema_row_t *db_schema_new(const char *name, const char *comment, uint16_t d
     return row;
 }
 
-db_schema_row_t *db_schema_load_schema(db_file_t *db_file, const char *name, uint16_t data_type)
+db_schema_row_t *db_schema_load_table(db_file_t *db_file, const char *name)
 {
-    data_block_prepare_t *block = db_file_read(db_file, name, data_type);
+    data_block_prepare_t *block = db_file_read(db_file, name, 0, 0, ROW_TABLE);
+    return block->schema;
+}
+
+db_schema_row_t *db_schema_load_column(db_file_t *db_file, uint32_t page, uint16_t offset)
+{
+    data_block_prepare_t *block = db_file_read(db_file, NULL, page, offset, ROW_COLUMN);
     return block->schema;
 }
 

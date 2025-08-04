@@ -60,16 +60,28 @@ static void *db_file_read_thread(void *args)
         pthread_mutex_lock(&db_file->rlock);
         data_block_prepare_t *block = (data_block_prepare_t *)array_remove_front(db_file->rbuf);
         pthread_mutex_unlock(&db_file->rlock);
-        // 查找所在页和偏移量
+
         data_ref_t ref;
-        db_file_page_t *page = db_file_find(db_file, block->name, block->type, &ref);
+        db_file_page_t *page = NULL;
+        if (block->type == ROW_TABLE)
+        {
+            // 匹配查询
+            page = db_file_find(db_file, block->name, block->type, &ref);
+        }
+        else if (block->type == ROW_COLUMN)
+        {
+            ref.page = block->next.page;
+            ref.offset = block->next.offset;
+            // 直接索引
+            page = db_file_page(db_file, block->next.page);
+        }
         if (!page)
         {
             log_error("row %s not found\n", block->name);
             free(page);
             return NULL;
         }
-        db_schema_row_t *schema = (db_schema_row_t *)page->data + ref.offset;
+        db_schema_row_t *schema = (db_schema_row_t *)(page->data + ref.offset);
         block->schema = schema;
         block->size = sizeof(db_schema_row_t);
         // 读取注释
@@ -263,11 +275,19 @@ db_file_t *db_file_open(const char *dbname)
     }
 }
 
-data_block_prepare_t *db_file_read(db_file_t *db_file, const char *name, uint16_t data_type)
+data_block_prepare_t *db_file_read(db_file_t *db_file, const void *name, uint32_t page, uint16_t offset, uint16_t data_type)
 {
     data_block_prepare_t *block = data_block_prepare();
-    strcpy(block->name, name);
     block->type = data_type;
+    if (data_type == ROW_TABLE)
+    {
+        strcpy(block->name, name);
+    }
+    else if (data_type == ROW_COLUMN)
+    {
+        block->next.page = page;
+        block->next.offset = offset;
+    }
     // 提交任务
     pthread_mutex_lock(&db_file->rlock);
     array_insert_back(db_file->rbuf, (int64_t)block);

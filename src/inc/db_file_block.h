@@ -24,16 +24,17 @@ typedef struct data_block_s
 {
     uint16_t size;              // 数据长度
     uint16_t type;              // 数据类型
-    data_ref_t cover;           // 覆盖的位置(BLOCK_COVER时必传)
+    data_ref_t cover;           // 覆盖的位置(flags & BLOCK_COVER时必传)
     char data[DATA_BLOCK_SIZE]; // 数据块
     uint8_t flags;              // 任务标志
 } data_block_t;
 
 struct data_block_prepare_s
 {
-    sem_t sem;     // 信号量
-    char name[64]; // 索引名称
-    uint16_t type; // 数据类型
+    sem_t sem;       // 信号量
+    char name[64];   // 索引名称(type = ROW_TABLE时必传)
+    data_ref_t next; // 索引地址(type = ROW_COLUMN时必传)
+    uint16_t type;   // 数据类型
 
     // 返回数据
 
