@@ -10,6 +10,7 @@ enum {
     ROW_COLUMN, // 数据列
 };
 
+
 // 102bytes对齐
 struct __attribute__((packed)) db_schema_row_s {
     char name[64];          // (64 bytes) 结构名称

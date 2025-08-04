@@ -13,8 +13,19 @@ int main(int argc, char *argv[])
 {
     db_init();
     db_file_t *db_file = db_file_open("test");
-    // 读取表
-    db_schema_row_t *user = db_schema_load_schema(db_file, "user", ROW_TABLE);
-    printf("table: %s, comment=%s\n", user->name, (char *)user->comment);
+    db_schema_row_t *user = db_schema_new("user", "this is user table comment!", ROW_TABLE);
+    db_file_write_schema(db_file, user, false);
+    
+    db_schema_row_t *id = db_schema_new("id", "user id", ROW_COLUMN);
+    db_file_write_schema(db_file, id, false);
+    db_schema_link(user, id);
+    db_file_link_schema(db_file, user, false);
+
+    db_schema_row_t *name = db_schema_new("name", "user name", ROW_COLUMN);
+    db_file_write_schema(db_file, name, false);
+    db_schema_link(name, id);
+    db_file_link_schema(db_file, id, false);
+
+    db_file_commit(db_file);
     return 0;
 }
