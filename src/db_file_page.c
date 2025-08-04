@@ -113,6 +113,17 @@ int db_file_page_read_data(db_file_page_t *page)
     return size;
 }
 
+int db_file_page_cover_row(db_file_page_t *page, uint16_t offset, const void *data, uint16_t size)
+{
+    lseek(page->fd, (page->header.page - 1) * CSDB_DB_FILE_PAGE_SIZE + sizeof(db_file_page_header_t) + offset, SEEK_SET);
+    int nbytes = write(page->fd, data, size);
+    if (nbytes < size) {
+        perror("write page row failed");
+        return -1;
+    }
+    return 0;
+}
+
 int db_file_page_write_row(db_file_page_t *page, const void *data, uint16_t size)
 {
     // 写入数据

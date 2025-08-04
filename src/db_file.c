@@ -90,7 +90,7 @@ static void *db_file_write_thread(void *args)
         pthread_mutex_lock(&db_file->wlock);
         data_block_list_t *list = (data_block_list_t *)array_remove_front(db_file->wbuf);
         pthread_mutex_unlock(&db_file->wlock);
-        if (!list)
+        if (!list || !list->list)
         {
             log_error("No data block list to process\n");
             continue;
@@ -106,26 +106,35 @@ static void *db_file_write_thread(void *args)
                 log_error("Failed to get data block from list\n");
                 continue;
             }
-            // 写入数据块到文件
-            db_file_page_t *page = db_file_alloc_page(db_file, block->type, CSDB_DB_PAGE_ROW_SIZE);
-            if (!page)
+
+            if (block->flags & BLOCK_COVER)
             {
-                log_error("No available page to write data block\n");
-                continue;
-            }
-            if (last_page)
-            {
-                // 非第一次写入，设置数据页链表
-                last_page->header.next = page->header.page;
+                db_file_page_t *page = db_file_page(db_file, block->cover.page);
+                db_file_page_cover_row(page, block->cover.offset, block->data, block->size);
             }
             else
             {
-                // 第一次写入，更新ref
-                list->ref.page = page->header.page;
-                list->ref.offset = page->header.size;
+                // 写入数据块到文件
+                db_file_page_t *page = db_file_alloc_page(db_file, block->type, CSDB_DB_PAGE_ROW_SIZE);
+                if (!page)
+                {
+                    log_error("No available page to write data block\n");
+                    continue;
+                }
+                if (last_page)
+                {
+                    // 非第一次写入，设置数据页链表
+                    last_page->header.next = page->header.page;
+                }
+                else
+                {
+                    // 第一次写入，更新ref
+                    list->ref.page = page->header.page;
+                    list->ref.offset = page->header.size;
+                }
+                db_file_page_write_row(page, block->data, block->size);
+                last_page = page;
             }
-            db_file_page_write_row(page, block->data, block->size);
-            last_page = page;
         }
         sem_post(&list->sem);
         array_remove_value(db_file->wbuf, (int64_t)list);
@@ -281,14 +290,45 @@ void db_file_write_schema(db_file_t *db_file, db_schema_row_t *schema, bool comm
     data_ref_t ref;
     db_file_write(db_file, &ref, (char *)schema, sizeof(db_schema_row_t), DB_FILE_SCHEMA, commit);
     schema->self = ref_encode(&ref);
+
     if (schema->comment == 0)
-    {
-        db_file_commit(db_file);
         return;
-    }
+
     char *comment = (char *)schema->comment;
     db_file_write(db_file, &ref, comment, strlen(comment) + 1, DB_FILE_VALUE, commit);
     schema->comment = ref_encode(&ref);
+}
+
+void db_file_link_schema(db_file_t *db_file, db_schema_row_t *schema, bool commit)
+{
+    db_file_cover(db_file, (char *)schema, sizeof(db_schema_row_t), DB_FILE_SCHEMA, commit);
+}
+
+void db_file_cover(db_file_t *db_file, char *data, size_t size, uint16_t type, bool commit)
+{
+    // 文件分块
+    size_t remaining = size;
+    data_block_list_t *list = data_block_list_create();
+    data_block_create(list, data, size, type, BLOCK_COVER);
+    // 提交写任务
+    log_info("commit cover task with %d blocks\n", list->list->size);
+    pthread_mutex_lock(&db_file->wlock);
+    array_insert_back(db_file->wbuf, (int64_t)list);
+    pthread_mutex_unlock(&db_file->wlock);
+    sem_post(&db_file->wsem);
+    // 等待任务执行完毕
+    clock_t begin = clock();
+    sem_wait(&list->sem);
+    // 销毁数据块列表
+    data_block_list_destroy(list);
+    // 提交数据
+    if (commit)
+    {
+        log_info("cover task committed\n");
+        db_file_commit(db_file);
+    }
+    clock_t end = clock();
+    log_info("cover task completed in %f seconds\n", (double)(end - begin) / CLOCKS_PER_SEC);
 }
 
 void db_file_write(db_file_t *db_file, data_ref_t *ref, char *data, size_t size, uint16_t type, bool commit)
@@ -296,7 +336,7 @@ void db_file_write(db_file_t *db_file, data_ref_t *ref, char *data, size_t size,
     // 文件分块
     size_t remaining = size;
     data_block_list_t *list = data_block_list_create();
-    data_block_create(list, data, size, type);
+    data_block_create(list, data, size, type, BLOCK_DEFAULT);
     // 提交写任务
     log_info("commit write task with %d blocks\n", list->list->size);
     pthread_mutex_lock(&db_file->wlock);

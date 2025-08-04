@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "db_file_block.h"
+#include "lib/code.h"
 
 data_block_list_t *data_block_list_create()
 {
@@ -26,7 +27,7 @@ void data_block_list_destroy(data_block_list_t *db_list)
     }
 }
 
-void data_block_create(data_block_list_t *list, char *data, size_t size, uint16_t type)
+void data_block_create(data_block_list_t *list, char *data, size_t size, uint16_t type, uint8_t flags)
 {
     uint16_t wsz = 0;
     while (size > 0)
@@ -35,6 +36,12 @@ void data_block_create(data_block_list_t *list, char *data, size_t size, uint16_
         data_block_t *block = (data_block_t *)malloc(sizeof(data_block_t));
         block->size = wsz;
         block->type = type;
+        block->flags = BLOCK_DEFAULT | flags;
+        if (block->flags & BLOCK_COVER)
+        {
+            db_schema_row_t *row = (db_schema_row_t *)data;
+            ref_decode(row->self, &block->cover);
+        }
         memcpy(block->data, data, wsz);
         sl_list_insert_back(list->list, sl_node_create((int64_t)block));
         // 更新剩余字节数
