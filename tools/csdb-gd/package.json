@@ -1,0 +1,46 @@
+{
+  "name": "csdb-gd",
+  "version": "0.1.0",
+  "description": "csdb-gd: 使用 faker.js 生成模拟数据并保存为 CSV，生成时提供 TUI 供用户选择保存位置、字段等配置",
+  "type": "module",
+  "license": "MIT",
+  "author": "csdb-teach",
+  "bin": {
+    "csdb-gd": "dist/cli.js"
+  },
+  "main": "dist/cli.js",
+  "files": [
+    "dist/*.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build",
+    "dev": "tsc -p tsconfig.json && node dist/cli.js",
+    "start": "node dist/cli.js",
+    "test": "tsc -p tsconfig.json && node --test \"dist/test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "csdb",
+    "faker",
+    "csv",
+    "tui",
+    "mock-data",
+    "teaching"
+  ],
+  "dependencies": {
+    "@faker-js/faker": "^10.0.0",
+    "commander": "^14.0.0",
+    "ink": "^6.8.0",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "typescript": "^5.9.0"
+  }
+}
