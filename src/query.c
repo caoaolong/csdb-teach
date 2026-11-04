@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L /* clock_gettime 需要 */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,13 +31,7 @@ static int query_scan(const char *csv_path, const char *id_str,
     while ((nread = getline(&line, &len, fp)) != -1)
     {
         lineno++;
-        const char *p = line;
-        if (lineno == 1 && nread >= 3 &&
-            (unsigned char)p[0] == 0xEF && (unsigned char)p[1] == 0xBB &&
-            (unsigned char)p[2] == 0xBF)
-        {
-            p += 3; /* 跳过 UTF-8 BOM（csdb-gd 默认 utf8-bom 编码） */
-        }
+        const char *p = skip_bom(line, (size_t)nread, lineno == 1);
         first_field(p, field, sizeof(field));
         if (strcmp(field, id_str) == 0)
         {
@@ -72,14 +67,11 @@ int query_csv(const char *csv_path, const char *id_str)
     clock_gettime(CLOCK_MONOTONIC, &t0);
 
     /* 非纯数字 ID 无法查数字索引，直接走扫描（保持原 strcmp 语义） */
-    char *end = NULL;
-    long long qid_ll = strtoll(id_str, &end, 10);
-    int is_number = (end != id_str && *end == '\0');
-    if (!is_number)
+    int64_t qid = 0;
+    if (!parse_id(id_str, &qid))
     {
         return query_scan(csv_path, id_str, t0, 1);
     }
-    int64_t qid = (int64_t)qid_ll;
 
     /* 索引查找：具体的文件格式与二分逻辑都在 index.c 内 */
     int64_t target_off = -1;
@@ -119,12 +111,27 @@ int query_csv(const char *csv_path, const char *id_str)
     }
     char *line = NULL;
     size_t len = 0;
-    if (getline(&line, &len, fp) == -1)
+    ssize_t nread = getline(&line, &len, fp);
+    if (nread == -1)
     {
         perror("读取数据行失败");
         free(line);
         fclose(fp);
         return 1;
+    }
+    /* 读时回验：offset 处第一字段必须等于 qid，否则索引已过期，不可直接返回 */
+    {
+        const char *p = skip_bom(line, (size_t)nread, target_off == 0);
+        char field[1024];
+        first_field(p, field, sizeof(field));
+        int64_t got = 0;
+        if (!parse_id(field, &got) || got != qid)
+        {
+            fprintf(stderr, "索引与数据不一致(可能已过期)，回退全表扫描，请重建索引\n");
+            free(line);
+            fclose(fp);
+            return query_scan(csv_path, id_str, t0, 1);
+        }
     }
     fputs(line, stdout);
     free(line);

@@ -1,30 +1,15 @@
 #define _POSIX_C_SOURCE 200809L /* getline / ftello 需要 */
 
-#include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
 
 #include "engine.h"
 #include "index.h"
-
-static int parse_id(const char *field, int64_t *out)
-{
-    char *end = NULL;
-    errno = 0;
-    if (field[0] == '\0')
-    {
-        return 0;
-    }
-    long long v = strtoll(field, &end, 10);
-    if (errno != 0 || end == field || *end != '\0')
-    {
-        return 0;
-    }
-    *out = (int64_t)v;
-    return 1;
-}
 
 static int cmp_entry(const void *a, const void *b)
 {
@@ -72,10 +57,27 @@ void derive_idx_path(const char *csv_path, char *out, size_t cap)
     memcpy(out + dir_len + base_len, ".idx", 5); /* 含 NUL */
 }
 
+static void idx_fill_header(idx_header_t *h, int64_t csv_size, int64_t csv_mtime, uint64_t count)
+{
+    memcpy(h->magic, IDX_MAGIC, IDX_MAGIC_LEN);
+    h->csv_size = csv_size;
+    h->csv_mtime = csv_mtime;
+    h->count = count;
+}
+
 int build_index(const char *csv_path)
 {
     struct timespec t0, t1;
     clock_gettime(CLOCK_MONOTONIC, &t0);
+
+    /* 建索引前先记录源文件 size/mtime，供读时判过期 */
+    struct stat st;
+    int64_t src_size = -1, src_mtime = -1;
+    if (stat(csv_path, &st) == 0)
+    {
+        src_size = (int64_t)st.st_size;
+        src_mtime = (int64_t)st.st_mtime;
+    }
 
     FILE *fp = fopen(csv_path, "rb");
     if (fp == NULL)
@@ -117,13 +119,7 @@ int build_index(const char *csv_path)
             break;
         }
         lineno++;
-        const char *p = line;
-        if (lineno == 1 && nread >= 3 &&
-            (unsigned char)p[0] == 0xEF && (unsigned char)p[1] == 0xBB &&
-            (unsigned char)p[2] == 0xBF)
-        {
-            p += 3; /* 跳过 UTF-8 BOM（csdb-gd 默认 utf8-bom 编码） */
-        }
+        const char *p = skip_bom(line, (size_t)nread, lineno == 1);
         first_field(p, field, sizeof(field));
         int64_t id;
         if (!parse_id(field, &id))
@@ -153,7 +149,7 @@ int build_index(const char *csv_path)
 
     qsort(arr, cnt, sizeof(idx_entry_t), cmp_entry);
 
-    char idx_path[4096];
+    char idx_path[PATH_CAP];
     derive_idx_path(csv_path, idx_path, sizeof(idx_path));
     if (idx_path[0] == '\0')
     {
@@ -161,11 +157,29 @@ int build_index(const char *csv_path)
         free(arr);
         return 1;
     }
+    char tmp_path[TMP_CAP];
+    if (make_tmp_path(idx_path, tmp_path, sizeof(tmp_path)) != 0)
+    {
+        fprintf(stderr, "索引路径过长\n");
+        free(arr);
+        return 1;
+    }
 
-    FILE *out = fopen(idx_path, "wb");
+    /* 原子替换：先写 tmp，fsync 落盘，再 rename，避免半截 .idx 被当成好的用 */
+    FILE *out = fopen(tmp_path, "wb");
     if (out == NULL)
     {
         perror("创建索引文件失败");
+        free(arr);
+        return 1;
+    }
+    idx_header_t hdr;
+    idx_fill_header(&hdr, src_size, src_mtime, (uint64_t)cnt);
+    if (fwrite(&hdr, sizeof(hdr), 1, out) != 1)
+    {
+        perror("写入索引头失败");
+        fclose(out);
+        remove(tmp_path);
         free(arr);
         return 1;
     }
@@ -173,10 +187,23 @@ int build_index(const char *csv_path)
     {
         perror("写入索引文件失败");
         fclose(out);
+        remove(tmp_path);
         free(arr);
         return 1;
     }
+    fflush(out);
+    if (file_fsync(out) != 0)
+    {
+        perror("索引 fsync 失败(继续尝试替换)");
+    }
     fclose(out);
+    if (file_replace(tmp_path, idx_path) != 0)
+    {
+        perror("索引原子替换失败");
+        remove(tmp_path);
+        free(arr);
+        return 1;
+    }
     free(arr);
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
@@ -190,7 +217,7 @@ int build_index(const char *csv_path)
 
 int idx_lookup(const char *csv_path, int64_t qid, int64_t *offset_out)
 {
-    char idx_path[4096];
+    char idx_path[PATH_CAP];
     derive_idx_path(csv_path, idx_path, sizeof(idx_path));
     FILE *idx = (idx_path[0] != '\0') ? fopen(idx_path, "rb") : NULL;
     if (idx == NULL)
@@ -205,23 +232,56 @@ int idx_lookup(const char *csv_path, int64_t qid, int64_t *offset_out)
         return -2;
     }
     long long size = ftello(idx);
-    if (size < 0 || size % (long long)sizeof(idx_entry_t) != 0)
+    if (size < (long long)sizeof(idx_header_t) ||
+        (size - (long long)sizeof(idx_header_t)) % (long long)sizeof(idx_entry_t) != 0)
     {
-        fprintf(stderr, "索引文件损坏: %s\n", idx_path);
+        fprintf(stderr, "索引为旧格式或已损坏，请重建: %s\n", idx_path);
         fclose(idx);
-        return -2;
+        return -1; /* 可回退扫描，不当硬错 */
     }
-    size_t cnt = (size_t)(size / (long long)sizeof(idx_entry_t));
     if (fseeko(idx, 0, SEEK_SET) != 0)
     {
         perror("索引 seek 失败");
         fclose(idx);
         return -2;
     }
+    idx_header_t hdr;
+    if (fread(&hdr, sizeof(hdr), 1, idx) != 1)
+    {
+        perror("读取索引头失败");
+        fclose(idx);
+        return -2;
+    }
+    if (memcmp(hdr.magic, IDX_MAGIC, IDX_MAGIC_LEN) != 0)
+    {
+        fprintf(stderr, "索引为旧格式或已损坏，请重建: %s\n", idx_path);
+        fclose(idx);
+        return -1;
+    }
+    size_t cnt = (size_t)hdr.count;
+    if ((long long)sizeof(idx_header_t) + (long long)cnt * (long long)sizeof(idx_entry_t) != size)
+    {
+        fprintf(stderr, "索引文件损坏: %s\n", idx_path);
+        fclose(idx);
+        return -1;
+    }
+
+    /* 过期检测：源文件 size/mtime 变了就不再信任索引 */
+    struct stat st;
+    if (stat(csv_path, &st) == 0)
+    {
+        if ((int64_t)st.st_size != hdr.csv_size || (int64_t)st.st_mtime != hdr.csv_mtime)
+        {
+            fprintf(stderr, "索引已过期(数据文件已变化)，请重建索引: %s\n", idx_path);
+            fclose(idx);
+            return -1;
+        }
+    }
+
     idx_entry_t *arr = NULL;
     if (cnt > 0)
     {
-        arr = (idx_entry_t *)malloc(size);
+        arr = (idx_entry_t *)malloc(cnt * sizeof(idx_entry_t));
         if (arr == NULL)
         {
             fprintf(stderr, "内存分配失败\n");

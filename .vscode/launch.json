@@ -9,7 +9,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/csdbm.exe",
-      "args": ["./build/students.csv", "888888"],
+      "args": ["./build/students.csv", "update_sn", "888888", "123"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],

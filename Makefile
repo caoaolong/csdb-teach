@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -g -Wall -Wextra -std=c11 -Iinc
 BUILD_DIR = build
 TARGET = $(BUILD_DIR)/csdbm
-SRC = main.c src/engine.c src/index.c src/query.c
+SRC = main.c $(wildcard src/*.c)
 
 all: $(TARGET)
 
@@ -13,6 +13,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 clean:
-	rm -rf $(BUILD_DIR)
+	# 只删构建产物，保留数据文件 (*.csv / *.idx 不删)
+	rm -f $(TARGET) $(TARGET).exe $(BUILD_DIR)/*.tmp *.tmp
 
 .PHONY: all clean

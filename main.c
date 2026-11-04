@@ -3,6 +3,7 @@
 
 #include "index.h"
 #include "query.h"
+#include "update.h"
 
 int main(int argc, char *argv[])
 {
@@ -11,12 +12,22 @@ int main(int argc, char *argv[])
         fprintf(stderr, "用法: %s <csv文件> <ID|index>\n", argv[0]);
         fprintf(stderr, "示例: %s students.csv 3\n", argv[0]);
         fprintf(stderr, "示例: %s students.csv index\n", argv[0]);
+        fprintf(stderr, "用法: %s <csv文件> update_sn <ID> <新学号>\n", argv[0]);
         return 2;
     }
 
     if (strcmp(argv[2], "index") == 0)
     {
         return build_index(argv[1]);
+    }
+    if (strcmp(argv[2], "update_sn") == 0)
+    {
+        if (argc < 5)
+        {
+            fprintf(stderr, "用法: %s <csv文件> update_sn <ID> <新学号>\n", argv[0]);
+            return 2;
+        }
+        return update_student_no(argv[1], argv[3], argv[4]);
     }
     return query_csv(argv[1], argv[2]);
 }
