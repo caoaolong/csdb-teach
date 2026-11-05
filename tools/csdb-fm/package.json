@@ -1,0 +1,42 @@
+{
+  "name": "csdb-fm",
+  "version": "0.1.0",
+  "description": "csdb-fm: 可视化查看 csdb-teach 二进制格式（.dbd 数据文件 / .dbi 索引文件）的 TUI 工具",
+  "type": "module",
+  "license": "MIT",
+  "author": "csdb-teach",
+  "bin": {
+    "csdb-fm": "dist/cli.js"
+  },
+  "main": "dist/cli.js",
+  "files": [
+    "dist/*.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json && node dist/cli.js",
+    "start": "node dist/cli.js",
+    "test": "tsc -p tsconfig.json && node --test \"dist/test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "csdb",
+    "tui",
+    "binary-format",
+    "teaching"
+  ],
+  "dependencies": {
+    "commander": "^14.0.0",
+    "ink": "^6.8.0",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "typescript": "^5.9.0"
+  }
+}
