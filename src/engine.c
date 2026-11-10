@@ -159,11 +159,6 @@ void csv_escape(const char *v, char *out, size_t cap)
     out[n] = '\0';
 }
 
-void first_field(const char *line, char *out, size_t cap)
-{
-    csv_value(line, strlen(line), 0, out, cap);
-}
-
 int parse_id(const char *field, int64_t *out)
 {
     char *end = NULL;
@@ -179,21 +174,6 @@ int parse_id(const char *field, int64_t *out)
     }
     *out = (int64_t)v;
     return 1;
-}
-
-int id_match(const char *field, const char *id_str)
-{
-    if (strcmp(field, id_str) == 0)
-    {
-        return 1;
-    }
-    /* 数字语义兜底："001" 与 "1" 视为同一 ID */
-    int64_t a, b;
-    if (parse_id(field, &a) && parse_id(id_str, &b))
-    {
-        return a == b;
-    }
-    return 0;
 }
 
 const char *skip_bom(const char *p, size_t nread, int is_first)

@@ -13,7 +13,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 clean:
-	# 只删构建产物，保留数据文件 (*.csv / *.idx 不删)
+	# 只删构建产物，保留数据文件 (*.csv / *.dbd / *.dbi 不删)
 	rm -f $(TARGET) $(TARGET).exe $(BUILD_DIR)/*.tmp *.tmp
 
 .PHONY: all clean
