@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { Buffer } from 'node:buffer';
 import { Box, Text, useApp, useInput } from 'ink';
 import {
   DBD_HEADER_SIZE,
@@ -59,8 +60,8 @@ function HeaderView({ file }: { file: FmInput }) {
           const h = parseDbiHeader(buf);
           return [
             ['0', '8', `magic = ${buf.subarray(0, 8).toString('ascii')}`],
-            ['8', '8', `csv_size = ${String(h.csvSize)}`],
-            ['16', '8', `csv_mtime = ${mtimeStr(h.csvMtime)}`],
+            ['8', '8', `db_size = ${String(h.dbSize)}`],
+            ['16', '8', `db_mtime = ${mtimeStr(h.dbMtime)}`],
             ['24', '8', `count = ${String(h.count)}`],
           ];
         })();
@@ -182,7 +183,7 @@ function LayoutView({ file, cursor }: { file: FmInput; cursor: number }) {
     const marks = [0, count - 1, cursor].filter((v, i, a) => v >= 0 && v < count && a.indexOf(v) === i);
     return (
       <Box flexDirection="column">
-        <Text>[0 .. 31] 文件头 32B magic=CSDBIDX1（csv_size/csv_mtime/count）</Text>
+        <Text>[0 .. 31] 文件头 32B magic=CSDBIDX1（db_size/db_mtime/count）</Text>
         <Text>[32 .. {32 + count * DBI_ENTRY_SIZE - 1}] 条目区 {count} × {DBI_ENTRY_SIZE}B（已按 id 排序）</Text>
         {marks.map((i) => {
           const e = parseDbiEntry(buf, i);

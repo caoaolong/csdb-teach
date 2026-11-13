@@ -1,4 +1,5 @@
 import { readFileSync, statSync } from 'node:fs';
+import type { Buffer } from 'node:buffer';
 
 /**
  * csdb-teach 二进制格式解析（与 inc/record.h、inc/index.h 的 C 布局对应）。
@@ -143,8 +144,8 @@ export function rowToCsv(r: StudentRow): string {
 /* ------------------------------- .dbi ------------------------------- */
 
 export interface DbiHeader {
-  csvSize: bigint;
-  csvMtime: bigint;
+  dbSize: bigint;
+  dbMtime: bigint;
   count: bigint;
 }
 
@@ -153,8 +154,8 @@ export function parseDbiHeader(buf: Buffer): DbiHeader {
   if (detectKind(buf) !== 'dbi') throw new Error('魔数不匹配，不是 .dbi 索引文件');
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   return {
-    csvSize: dv.getBigInt64(8, true),
-    csvMtime: dv.getBigInt64(16, true),
+    dbSize: dv.getBigInt64(8, true),
+    dbMtime: dv.getBigInt64(16, true),
     count: dv.getBigUint64(24, true),
   };
 }

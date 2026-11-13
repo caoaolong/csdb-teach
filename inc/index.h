@@ -1,0 +1,32 @@
+#ifndef INDEX_H
+#define INDEX_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#define IDX_MAGIC "CSDBIDX1"
+#define IDX_MAGIC_LEN 8
+
+typedef struct
+{
+    int64_t id;
+    int64_t offset;
+} idx_entry_t;
+
+typedef struct
+{
+    char magic[IDX_MAGIC_LEN];
+    int64_t db_size;
+    int64_t db_mtime;
+    uint64_t count;
+} idx_header_t;
+
+void derive_dbi_path(const char *db_path, char *out, size_t cap);
+
+int build_index(const char *db_path);
+
+int idx_lookup(const char *db_path, int64_t qid, int64_t *offset_out);
+
+int idx_refresh(const char *db_path);
+
+#endif

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { describe, it } from 'node:test';
 import {
   DBD_HEADER_SIZE,
@@ -116,8 +117,8 @@ describe('dbi', () => {
   it('文件头与条目解析正确', () => {
     const buf = makeDbi();
     const h = parseDbiHeader(buf);
-    assert.equal(h.csvSize, 100n);
-    assert.equal(h.csvMtime, 1700000000n);
+    assert.equal(h.dbSize, 100n);
+    assert.equal(h.dbMtime, 1700000000n);
     assert.equal(h.count, 2n);
     assert.deepEqual(parseDbiEntry(buf, 0), { id: 7n, offset: 19n });
     assert.deepEqual(parseDbiEntry(buf, 1), { id: 9n, offset: 44n });

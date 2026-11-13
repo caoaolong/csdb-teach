@@ -39,6 +39,7 @@ const [file] = program.args as [string | undefined];
 function fail(msg: string): never {
   console.error(`错误: ${msg}`);
   process.exit(1);
+  throw new Error(msg); // 不可达：保证 `: never` 在 process 类型缺失时仍然成立
 }
 
 if (!file) fail('请给出 .dbd 或 .dbi 文件路径');
@@ -64,7 +65,7 @@ if (opts.head) {
     console.log(`kind=dbd magic=CSDBD001 version=${h.version} row_size=${h.rowSize} row_count=${String(h.rowCount)} reserved=${String(h.reserved)} bytes=${loaded!.size}`);
   } else {
     const h = parseDbiHeader(loaded!.buf);
-    console.log(`kind=dbi magic=CSDBIDX1 csv_size=${String(h.csvSize)} csv_mtime=${String(h.csvMtime)} count=${String(h.count)} bytes=${loaded!.size}`);
+    console.log(`kind=dbi magic=CSDBIDX1 db_size=${String(h.dbSize)} db_mtime=${String(h.dbMtime)} count=${String(h.count)} bytes=${loaded!.size}`);
   }
   process.exit(0);
 }
