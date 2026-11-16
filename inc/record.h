@@ -9,6 +9,9 @@
 #define DB_MAGIC_LEN 8
 #define DB_VERSION 1u
 
+/* 删除行标志哨兵：id <= 0 的行视为已删除（真实 id 从 1 开始） */
+#define TOMBSTONE_ID ((int64_t)-1)
+
 #define SN_LEN 16
 #define NAME_LEN 64
 #define GENDER_LEN 8

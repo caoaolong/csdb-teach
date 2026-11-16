@@ -117,6 +117,11 @@ int build_index(const char *db_path)
             fclose(fp);
             return 1;
         }
+        /* 删除行标志行（id <= 0）不进索引：已删数据对查询不可见 */
+        if (r.id <= 0)
+        {
+            continue;
+        }
         arr[cnt].id = r.id;
         arr[cnt].offset = (int64_t)off;
         cnt++;

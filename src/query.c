@@ -121,6 +121,11 @@ int query_scan(const char *db_path, const char *id_str, struct timespec t0)
             fclose(fp);
             return 1;
         }
+        /* 跳过删除行标志行：id <= 0 的是已删除数据，对查询不可见 */
+        if (r.id <= 0)
+        {
+            continue;
+        }
         if (r.id == qid)
         {
             db_print_row(&r);
